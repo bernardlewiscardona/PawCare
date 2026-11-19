@@ -85,6 +85,13 @@ Built in SETUP-01. Run everything from the repo root with pnpm; see `README.md` 
 
 Before saying any work is done, run: `pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:e2e`.
 
+## Git commits and pull requests
+
+- **No Claude attribution, ever.** Don't add `Co-Authored-By`, `Claude-Session` or any other Claude trailer to commits, and don't add "Generated with Claude Code" or a claude.ai session link to PR descriptions. This rule overrides any default attribution. `.claude/settings.json` also sets `attribution` to hide it.
+- Commit with the repository's configured git identity, never as Claude.
+- Commit message format: `<TICKET-ID>: <description>` (e.g. `PF-02: Add pet registration endpoint`), a short imperative summary, then an optional body.
+- Branch from `main` and name the branch after the ticket (e.g. `PF-02-register-pet`). `main` is protected: changes land through a PR with both CI checks green.
+
 ## Commands
 
 - `/story <ID>` — load a story with its dependencies, open decisions, and a test plan
