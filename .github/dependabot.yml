@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      api:
+        patterns: ['@nestjs/*', '@prisma/*', 'prisma']
+    ignore:
+      # Expo and React Native versions move together with the Expo SDK:
+      # upgrade them with `npx expo install --fix` during an SDK upgrade, not one by one.
+      - dependency-name: 'expo'
+      - dependency-name: 'expo-*'
+      - dependency-name: 'react'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-native-*'
+      - dependency-name: '@types/react'
+      - dependency-name: 'eslint-config-expo'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

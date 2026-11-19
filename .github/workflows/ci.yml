@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pawcare
+          POSTGRES_PASSWORD: pawcare_ci
+          POSTGRES_DB: pawcare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pawcare -d pawcare_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://pawcare:pawcare_ci@localhost:5432/pawcare_test?schema=public
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6 # version comes from "packageManager" in package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install (lockfile must not change)
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Prisma validate
+        run: pnpm prisma:validate
+
+      - name: Apply migrations
+        run: |
+          if [ -d apps/api/prisma/migrations ]; then
+            pnpm --filter api db:migrate:deploy
+          else
+            echo "No migrations yet (business tables arrive with feature tickets)."
+          fi
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build API
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: API smoke tests (real PostgreSQL)
+        run: pnpm test:e2e
+
+  mobile-bundle:
+    name: Mobile bundle smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Bundle Android and iOS JavaScript
+        run: pnpm --filter mobile exec expo export --platform android --platform ios --output-dir dist

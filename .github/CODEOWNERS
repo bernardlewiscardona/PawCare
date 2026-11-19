@@ -1,0 +1,5 @@
+# Replace the placeholders with real GitHub usernames or teams once approvers are confirmed
+# (open decision in docs/decisions.md). Until then this file assigns no reviewers.
+# /apps/api/      @your-org/backend
+# /apps/mobile/   @your-org/mobile
+# /docs/spec/     @your-org/product

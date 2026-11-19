@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+**/dist/
+**/.expo/
+**/node_modules/
+apps/api/src/generated/
+apps/mobile/ios/
+apps/mobile/android/
+docs/
+*.md
