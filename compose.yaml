@@ -1,0 +1,20 @@
+# Local development database only. Credentials here are local placeholders, not secrets.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pawcare
+      POSTGRES_PASSWORD: pawcare_local
+      POSTGRES_DB: pawcare
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pawcare_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pawcare -d pawcare']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pawcare_pgdata:

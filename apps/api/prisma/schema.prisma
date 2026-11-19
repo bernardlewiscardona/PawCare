@@ -1,0 +1,14 @@
+// PawCare database schema.
+// Business tables are added by their feature tickets (see docs/design/erd-and-flows.md).
+// Constraints Prisma can't express (CHECKs, partial unique indexes, composite same-owner FKs)
+// go into the generated migration SQL by hand.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

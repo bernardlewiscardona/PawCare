@@ -1,0 +1,28 @@
+{
+  "name": "pawcare",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": "^22.18.0 || ^24.11.0",
+    "pnpm": ">=10.28.0 <11"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d --wait db",
+    "db:down": "docker compose down",
+    "db:reset:DESTRUCTIVE": "pnpm --filter api run db:reset:DESTRUCTIVE",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "lint": "pnpm -r --parallel run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "build": "pnpm --filter api build",
+    "test": "pnpm -r run test",
+    "test:e2e": "pnpm --filter api test:e2e",
+    "prisma:validate": "pnpm --filter api prisma:validate",
+    "prisma:generate": "pnpm --filter api prisma:generate"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1"
+  }
+}
