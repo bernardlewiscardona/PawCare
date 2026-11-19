@@ -1,0 +1,11 @@
+# The Docker build context is the repository root. Send only what apps/api/Dockerfile copies,
+# so .env files, node_modules and git history never reach the Docker daemon.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!apps/mobile/package.json
+!apps/api/package.json
+!apps/api/prisma.config.ts
+!apps/api/prisma/

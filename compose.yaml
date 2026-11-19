@@ -1,4 +1,9 @@
-# Local development database only. Credentials here are local placeholders, not secrets.
+# Local development only. Credentials here are local placeholders, not secrets.
+#
+#   docker compose up -d --wait db         PostgreSQL only; run the API on your machine (pnpm dev:api)
+#   docker compose up -d --build --wait    PostgreSQL and the API, both in Docker
+name: pawcare
+
 services:
   db:
     image: postgres:16-alpine
@@ -15,6 +20,57 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # API dev server (nest start --watch) on Node 22, so your machine doesn't need Node.js for it.
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      # These values take precedence over apps/api/.env, which is meant for running on the host.
+      DATABASE_URL: postgresql://pawcare:pawcare_local@db:5432/pawcare?schema=public
+      # Docker Desktop doesn't pass file-change events from Windows or macOS into bind mounts,
+      # so the TypeScript watcher polls for changes instead.
+      TSC_WATCHFILE: DynamicPriorityPolling
+      TSC_WATCHDIRECTORY: RecursiveDirectoryUsingDynamicPriorityPolling
+    ports:
+      - '${API_PORT:-3000}:3000'
+    volumes:
+      - .:/workspace
+      # Keep the container's Linux node_modules apart from any installed on the host.
+      - /workspace/node_modules
+      - /workspace/apps/api/node_modules
+      - /workspace/apps/mobile/node_modules
+    # Re-syncs dependencies (a no-op unless pnpm-lock.yaml changed), regenerates the Prisma client
+    # into the bind-mounted src/generated, applies committed migrations, then starts in watch mode.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        pnpm install --frozen-lockfile --filter pawcare --filter "api..." --config.confirm-modules-purge=false
+        pnpm prisma:generate
+        if [ -d prisma/migrations ]; then pnpm db:migrate:deploy; fi
+        exec pnpm start:dev
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 180s
+      start_interval: 2s
 
 volumes:
   pawcare_pgdata:

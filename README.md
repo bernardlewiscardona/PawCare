@@ -15,9 +15,9 @@ This repo is set up for Claude Code: start with `CLAUDE.md`.
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| Node.js | 22.18+ or 24.11+ (`.nvmrc` = 22) | `nvm use` picks the right one |
+| Node.js | 22.18+ or 24.11+ (`.nvmrc` = 22) | `nvm use` picks the right one. Other versions are refused (`engine-strict`). Not needed for the API if you run it in Docker (section 4). |
 | pnpm | 10.28.x | `corepack enable` and the version in `package.json` is used automatically |
-| Docker | with Compose v2 | Runs the local PostgreSQL. On Windows, use Docker Desktop with WSL2. |
+| Docker | with Compose v2 | Runs the local PostgreSQL, and optionally the API. On Windows, use Docker Desktop with WSL2. |
 | Expo Go app or simulator | — | Android: Android Studio emulator. iOS: Xcode simulator (**macOS only**) or Expo Go on an iPhone. |
 
 ## 2. First-time setup
@@ -38,7 +38,7 @@ cp apps/mobile/.env.example apps/mobile/.env   # optional, see section 5
 pnpm db:up            # starts PostgreSQL 16 in Docker and waits until it is healthy
 ```
 
-Data persists in the `pawcare_pgdata` Docker volume between restarts. `pnpm db:down` stops the container and keeps the data.
+Data persists in a Docker volume (`pawcare_pawcare_pgdata`) between restarts. `pnpm db:down` stops the containers and keeps the data.
 
 ## 4. Start the API
 
@@ -55,6 +55,36 @@ Check it:
 | http://localhost:3000/docs | OpenAPI docs (not served in production) |
 
 If a required environment variable is missing or invalid, the API refuses to start and lists which variable is wrong. It never prints the value.
+
+### Or run the API in Docker
+
+Instead of `pnpm db:up` and `pnpm dev:api`, you can run PostgreSQL **and** the API in containers. The API container uses Node 22 and the pnpm version pinned in `package.json`, so it works whatever Node.js your machine has.
+
+```bash
+docker compose up -d --build --wait    # the first run builds the image, which takes a few minutes
+docker compose logs -f api             # follow the dev server
+```
+
+The URLs above work the same way. The repository is bind-mounted, so when you save a file under `apps/api/src` the server recompiles and restarts within a couple of seconds. On every start the container syncs dependencies, regenerates the Prisma client, and applies committed migrations.
+
+Run API commands inside the container:
+
+| Command | What it does |
+| --- | --- |
+| `docker compose exec api pnpm test` | Unit tests |
+| `docker compose exec api pnpm test:e2e` | API smoke tests against the `db` container |
+| `docker compose exec api pnpm lint` (or `typecheck`, `build`) | Lint, typecheck or build the API |
+| `docker compose exec api pnpm db:migrate --name <change>` | Create and apply a migration (written to `apps/api/prisma/migrations` on your machine) |
+| `docker compose exec api pnpm prisma:generate` | Regenerate the Prisma client after editing `schema.prisma` |
+| `docker compose exec -w /workspace api pnpm format:check` | Prettier check for the whole repo |
+| `docker compose stop api` | Stop the API container and keep the database running |
+| `docker compose down` | Stop everything (data is kept) |
+
+- The container takes `DATABASE_URL` from `compose.yaml` (host `db`), not from `apps/api/.env`.
+- Don't run `pnpm dev:api` at the same time, because both use port 3000. To publish the container on another port, set `API_PORT` in `.env`.
+- After `pnpm-lock.yaml` changes, run `docker compose up -d --build --wait` again.
+- The container has no mobile dependencies. The mobile app runs on your machine (section 5) and needs Node 22 or 24.
+- In Git Bash on Windows, paths such as `/workspace` get rewritten. Prefix the command with `MSYS_NO_PATHCONV=1` or use PowerShell.
 
 ## 5. Start the mobile app
 
@@ -99,10 +129,12 @@ Business tables are added by their feature tickets (see `docs/design/erd-and-flo
 | --- | --- | --- |
 | PostgreSQL | 5432 | `POSTGRES_PORT` in `.env`, **and** update the port in `DATABASE_URL` in `apps/api/.env` |
 | API | 3000 | `PORT` in `apps/api/.env`; on phones, also set `EXPO_PUBLIC_API_URL` |
+| API in Docker | 3000 | `API_PORT` in `.env`; on phones, also set `EXPO_PUBLIC_API_URL` |
 | Expo dev server | 8081 | `pnpm dev:mobile --port 8082` |
 
 ## 8. Troubleshooting
 
+- **`ERR_PNPM_UNSUPPORTED_ENGINE`:** your Node.js isn't 22.18+ or 24.11+, so pnpm refuses to run. Switch versions (`nvm use`, `fnm use`), or run the API in Docker (section 4).
 - **`/health/ready` returns 503:** the database isn't reachable. Run `pnpm db:up`, then `docker compose ps`, and check `DATABASE_URL`.
 - **The phone says "Cannot reach the API":** check that both devices are on the same Wi-Fi, allow port 3000 through your firewall (macOS: System Settings → Network → Firewall; Windows: allow Node.js on private networks), or set `EXPO_PUBLIC_API_URL` to your computer's LAN IP.
 - **Port already in use:** see section 7.
@@ -123,7 +155,7 @@ docs/
   github-setup.md       branch protection, secret scanning
 .claude/                Claude Code commands and the spec-reviewer agent
 .github/                CI, PR template, Dependabot, CODEOWNERS
-compose.yaml            local PostgreSQL
+compose.yaml            local PostgreSQL and the API dev container (apps/api/Dockerfile)
 ```
 
 Typical loop with Claude Code: `/backlog` → `/story PF-02` → `/implement-story PF-02` → `/spec-check PF-02`.
