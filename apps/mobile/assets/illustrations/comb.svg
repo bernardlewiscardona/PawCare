@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Comb">
+<path id="Vector" d="M36 14H12C9.79086 14 8 15.7909 8 18V19C8 21.2091 9.79086 23 12 23H36C38.2091 23 40 21.2091 40 19V18C40 15.7909 38.2091 14 36 14Z" fill="#FF88D3" stroke-width="2" stroke="#111111"/>
+<g id="Vector_2">
+<path d="M13 23V34ZM18 23V36ZM23 23V34ZM28 23V36ZM33 23V34Z" fill="black"/>
+<path d="M13 23V34M18 23V36M23 23V34M28 23V36M33 23V34" stroke-width="2.2" stroke-linecap="round" stroke="#111111"/>
+</g>
+</g>
+</svg>

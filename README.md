@@ -92,7 +92,34 @@ Run API commands inside the container:
 pnpm dev:mobile       # Expo dev server; press a (Android), i (iOS) or scan the QR code with Expo Go
 ```
 
-The home screen shows a **development connectivity check** that calls the API's `/health/ready`.
+You don't need the database or the API to try the screens (see the demo data note below), so after first-time setup (section 2) you can skip sections 3 and 4.
+
+### Run on the Android emulator (Android Studio)
+
+One-time setup:
+
+1. Install [Android Studio](https://developer.android.com/studio) and open it once. The standard setup wizard installs the Android SDK, Platform-Tools and the Emulator.
+2. Set `ANDROID_HOME` to the SDK folder and add its `platform-tools` to your `PATH`, so `adb` works in a terminal:
+
+   | OS | `ANDROID_HOME` |
+   | --- | --- |
+   | Windows | `%LOCALAPPDATA%\Android\Sdk` (System Properties → Environment Variables; then add `%ANDROID_HOME%\platform-tools` to `Path`) |
+   | macOS | `$HOME/Library/Android/sdk` (in `~/.zshrc`: `export ANDROID_HOME=$HOME/Library/Android/sdk` and `export PATH=$PATH:$ANDROID_HOME/platform-tools`) |
+
+   Open a new terminal and check that `adb version` works.
+3. Create a virtual device. Open Device Manager (welcome screen: **More Actions → Virtual Device Manager**; inside a project: **View → Tool Windows → Device Manager**), then **+ → Create Virtual Device**. Pick a phone such as **Pixel 8** and the system image **API 35** (x86_64 on Windows or Intel Macs, arm64 on Apple Silicon), then **Finish**.
+
+Every time:
+
+1. Start the emulator with ▶ in Device Manager and wait for the Android home screen. `adb devices` should list `emulator-5554  device`.
+2. From the repo root, run `pnpm dev:mobile` and press **a**. The first time, Expo installs **Expo Go** on the emulator, then opens PawCare in it. The first bundle takes about a minute.
+3. Edit code and the app reloads by itself. Press **r** in the terminal to reload manually, or **m** for the dev menu.
+
+To try a test APK instead of the dev server, drag the `.apk` onto the emulator window, or run `adb install -r PawCare-1.0.0.apk`. To build one, see "Build a test APK (Android)" below.
+
+The app opens on the Welcome screen. Every screen from the Figma design is built, but they all run on **in-memory demo data** (Bea and her pets Mochi, Kape and archived Bantay, with the clock fixed at 10 Nov 2026). Nothing calls the API yet, and changes are lost on reload. Feature tickets replace the demo data with API calls.
+
+The **development connectivity check**, which calls the API's `/health/ready`, is on the Developer tools screen: long-press the logo on Welcome (development builds only).
 
 How the app finds the API:
 
@@ -103,6 +130,40 @@ How the app finds the API:
 | iOS simulator | `http://localhost:3000` | Usually automatic. If not, set `EXPO_PUBLIC_API_URL=http://localhost:3000`. |
 
 A phone's own `localhost` is the phone itself, never your computer. `EXPO_PUBLIC_*` values are bundled into the app, so never put secrets in `apps/mobile/.env`. After changing `.env`, restart Expo with `pnpm dev:mobile --clear`.
+
+### Build a test APK (Android)
+
+The APK runs without Expo Go or a dev server. It is signed with the debug key, so it is for sideloading and testing only, not for the Play Store. You need Android Studio (its bundled JDK and the Android SDK). Set `JAVA_HOME` to Android Studio's `jbr` folder and `ANDROID_HOME` to the SDK.
+
+On macOS or Linux, build in place:
+
+```bash
+cd apps/mobile
+CI=1 npx expo prebuild --platform android --no-install   # generates android/ (git-ignored)
+cd android && ./gradlew assembleRelease
+```
+
+On Windows, the native build fails in place with `build.ninja still dirty` or `Filename longer than 260 characters`: the ninja bundled with the Android SDK can't handle the long paths that pnpm and CMake create. Build from a short-path copy with a flat `node_modules` instead (Git Bash, from the repo root):
+
+```bash
+mkdir -p dist/b    # dist/ is git-ignored
+tar --exclude=node_modules --exclude=.git --exclude=apps/mobile/android --exclude=.expo --exclude=./dist -cf - . | tar -xf - -C dist/b
+cd dist/b
+pnpm install --frozen-lockfile --config.node-linker=hoisted --ignore-scripts --filter mobile...
+cd apps/mobile && CI=1 npx expo prebuild --platform android --no-install
+```
+
+Then, in `dist/b/apps/mobile/android/app/build.gradle`, add this inside `android { defaultConfig { … } }` so CMake shortens over-long object paths:
+
+```groovy
+externalNativeBuild { cmake { arguments "-DCMAKE_OBJECT_PATH_MAX=255" } }
+```
+
+```bash
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
+```
+
+The first build takes about 40 minutes. Later builds take about 6 minutes after you copy changed files from `apps/mobile/src` into `dist/b/apps/mobile/src`. The APK is written to `android/app/build/outputs/apk/release/app-release.apk`. Restart `pnpm dev:mobile` after a build, because its file watcher can stall while the build copy changes. Delete `dist/b` (about 6 GB) when you no longer need it.
 
 ## 6. Everyday commands (from the repo root)
 
@@ -140,13 +201,18 @@ Business tables are added by their feature tickets (see `docs/design/erd-and-flo
 - **Port already in use:** see section 7.
 - **`pnpm install --frozen-lockfile` fails:** someone changed a `package.json` without committing `pnpm-lock.yaml`. Run `pnpm install` and commit the lockfile in its own change.
 - **Expo package version warnings:** add Expo packages with `pnpm --filter mobile exec expo install <pkg>`, never with `pnpm add`, so versions match the SDK.
+- **`No Android connected device found` after pressing a:** start the emulator first and wait for its home screen. Then check that `adb devices` lists it; if `adb` isn't found, `ANDROID_HOME`/`PATH` isn't set (section 5). Press **a** again.
+- **The emulator won't start or is very slow:** turn on CPU virtualization (VT-x/AMD-V) in the BIOS. On Windows, also turn on **Windows Hypervisor Platform** under "Turn Windows features on or off", then restart.
+- **The app stays on a white "PawCare" screen in Expo Go:** the first bundle is still building, so watch the terminal for `Android Bundled`. If it never finishes, stop the server and run `pnpm dev:mobile --clear`.
 
 ## 9. Repository layout
 
 ```
 apps/
   api/                  NestJS API (src/config, src/common, src/prisma, src/health, prisma/)
-  mobile/               Expo app (src/app = routes, src/lib, src/components)
+  mobile/               Expo app: src/app = routes, src/components/ui = UI kit from the Figma design system,
+                        src/components = feature components, src/theme = design tokens,
+                        src/lib = demo store and derived state, assets/ = SVG icons, illustrations, avatars
 docs/
   spec/                 product spec: overview + one file per epic
   design/               ERD, flowcharts, design review

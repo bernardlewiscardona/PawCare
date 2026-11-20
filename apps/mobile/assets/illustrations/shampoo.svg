@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Shampoo">
+<g id="Vector">
+<path d="M21 9H29ZM25 9V15Z" fill="black"/>
+<path d="M21 9H29M25 9V15" stroke-width="2.2" stroke-linecap="round" stroke="#111111"/>
+</g>
+<path id="Vector_2" d="M29 9H33V12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="#111111"/>
+<path id="Vector_3" d="M28.5 15H21.5C20.6716 15 20 15.6716 20 16.5V18.5C20 19.3284 20.6716 20 21.5 20H28.5C29.3284 20 30 19.3284 30 18.5V16.5C30 15.6716 29.3284 15 28.5 15Z" fill="#111111"/>
+<path id="Vector_4" d="M29 20H21C17.134 20 14 23.134 14 27V35C14 38.866 17.134 42 21 42H29C32.866 42 36 38.866 36 35V27C36 23.134 32.866 20 29 20Z" fill="#84E2FA" stroke-width="2" stroke="#111111"/>
+<path id="Vector_5" d="M21 34C22.6569 34 24 32.6569 24 31C24 29.3431 22.6569 28 21 28C19.3431 28 18 29.3431 18 31C18 32.6569 19.3431 34 21 34Z" fill="white"/>
+<path id="Vector_6" d="M28 29C29.1046 29 30 28.1046 30 27C30 25.8954 29.1046 25 28 25C26.8954 25 26 25.8954 26 27C26 28.1046 26.8954 29 28 29Z" fill="white"/>
+</g>
+</svg>

@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Toothbrush">
+<path id="Vector" d="M27 21C27 19.3431 25.6569 18 24 18C22.3431 18 21 19.3431 21 21V40C21 41.6569 22.3431 43 24 43C25.6569 43 27 41.6569 27 40V21Z" fill="#84E2FA" stroke-width="2" stroke="#111111"/>
+<path id="Vector_2" d="M26 5H22C20.3431 5 19 6.34315 19 8V16C19 17.6569 20.3431 19 22 19H26C27.6569 19 29 17.6569 29 16V8C29 6.34315 27.6569 5 26 5Z" fill="white" stroke-width="2" stroke="#111111"/>
+<g id="Vector_3">
+<path d="M22 8V16ZM26 8V16Z" fill="black"/>
+<path d="M22 8V16M26 8V16" stroke-width="2" stroke-linecap="round" stroke="#FF88D3"/>
+</g>
+</g>
+</svg>

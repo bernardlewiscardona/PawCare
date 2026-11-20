@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Report">
+<path id="Vector" d="M32 9H16C12.6863 9 10 11.6863 10 15V36C10 39.3137 12.6863 42 16 42H32C35.3137 42 38 39.3137 38 36V15C38 11.6863 35.3137 9 32 9Z" fill="white" stroke-width="2" stroke="#111111"/>
+<path id="Vector_2" d="M28.5 6H19.5C18.1193 6 17 7.11929 17 8.5V10.5C17 11.8807 18.1193 13 19.5 13H28.5C29.8807 13 31 11.8807 31 10.5V8.5C31 7.11929 29.8807 6 28.5 6Z" fill="#A6F686" stroke-width="2" stroke="#111111"/>
+<g id="Vector_3">
+<path d="M16 21H32ZM16 27H32ZM16 33H26Z" fill="black"/>
+<path d="M16 21H32M16 27H32M16 33H26" stroke-width="2" stroke-linecap="round" stroke="#111111"/>
+</g>
+</g>
+</svg>

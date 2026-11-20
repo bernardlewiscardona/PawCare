@@ -1,0 +1,22 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Syringe">
+<g id="Vector">
+<path d="M18 8H30Z" fill="black"/>
+<path d="M18 8H30" stroke-width="2.5" stroke-linecap="round" stroke="#111111"/>
+</g>
+<g id="Vector_2">
+<path d="M24 8V14Z" fill="black"/>
+<path d="M24 8V14" stroke-width="2" stroke="#111111"/>
+</g>
+<path id="Vector_3" d="M27 14H21C19.3431 14 18 15.3431 18 17V33C18 34.6569 19.3431 36 21 36H27C28.6569 36 30 34.6569 30 33V17C30 15.3431 28.6569 14 27 14Z" fill="#C6F1FD" stroke-width="2" stroke="#111111"/>
+<path id="Vector_4" d="M26.5 25H21.5C20.6716 25 20 25.6716 20 26.5V32.5C20 33.3284 20.6716 34 21.5 34H26.5C27.3284 34 28 33.3284 28 32.5V26.5C28 25.6716 27.3284 25 26.5 25Z" fill="#84E2FA"/>
+<g id="Vector_5">
+<path d="M18 20H22ZM18 25H22Z" fill="black"/>
+<path d="M18 20H22M18 25H22" stroke-width="1.5" stroke="#111111"/>
+</g>
+<g id="Vector_6">
+<path d="M24 36V43Z" fill="black"/>
+<path d="M24 36V43" stroke-width="2" stroke-linecap="round" stroke="#111111"/>
+</g>
+</g>
+</svg>
