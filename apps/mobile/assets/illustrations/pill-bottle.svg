@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Pill bottle">
+<path id="Vector" d="M30 17H18C15.2386 17 13 19.2386 13 22V37C13 39.7614 15.2386 42 18 42H30C32.7614 42 35 39.7614 35 37V22C35 19.2386 32.7614 17 30 17Z" fill="#FFCD20" stroke-width="2" stroke="#111111"/>
+<path id="Vector_2" d="M34 8H14C12.3431 8 11 9.34315 11 11V15C11 16.6569 12.3431 18 14 18H34C35.6569 18 37 16.6569 37 15V11C37 9.34315 35.6569 8 34 8Z" fill="#A6F686" stroke-width="2" stroke="#111111"/>
+<path id="Vector_3" d="M29 24H19C17.8954 24 17 24.8954 17 26V33C17 34.1046 17.8954 35 19 35H29C30.1046 35 31 34.1046 31 33V26C31 24.8954 30.1046 24 29 24Z" fill="white"/>
+<g id="Vector_4">
+<path d="M24 26.5V32.5ZM21 29.5H27Z" fill="black"/>
+<path d="M24 26.5V32.5M21 29.5H27" stroke-width="2.2" stroke-linecap="round" stroke="#FF88D3"/>
+</g>
+</g>
+</svg>

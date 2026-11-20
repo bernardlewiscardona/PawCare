@@ -1,0 +1,20 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Avatar/Bea">
+<g clip-path="url(#clip0_0_62)">
+<path id="Vector" d="M40 80C62.0914 80 80 62.0914 80 40C80 17.9086 62.0914 0 40 0C17.9086 0 0 17.9086 0 40C0 62.0914 17.9086 80 40 80Z" fill="#FFC6EA"/>
+<path id="Vector_2" d="M18 54C16 32 24 18 40 18C56 18 64 32 62 54H18Z" fill="#2B1B14"/>
+<path id="Vector_3" d="M14 84C16 70 26 63 40 63C54 63 64 70 66 84H14Z" fill="#84E2FA"/>
+<path id="Vector_4" d="M41 50H39C36.7909 50 35 51.7909 35 54V60C35 62.2091 36.7909 64 39 64H41C43.2091 64 45 62.2091 45 60V54C45 51.7909 43.2091 50 41 50Z" fill="#C98E68"/>
+<path id="Vector_5" d="M40 55C47.732 55 54 47.8366 54 39C54 30.1634 47.732 23 40 23C32.268 23 26 30.1634 26 39C26 47.8366 32.268 55 40 55Z" fill="#E2A97E"/>
+<path id="Vector_6" d="M26 35C30 25 48 23 54 35C48 31 36 29 26 35Z" fill="#2B1B14"/>
+<path id="Vector_7" d="M34.5 42C35.6046 42 36.5 41.1046 36.5 40C36.5 38.8954 35.6046 38 34.5 38C33.3954 38 32.5 38.8954 32.5 40C32.5 41.1046 33.3954 42 34.5 42Z" fill="#111111"/>
+<path id="Vector_8" d="M45.5 42C46.6046 42 47.5 41.1046 47.5 40C47.5 38.8954 46.6046 38 45.5 38C44.3954 38 43.5 38.8954 43.5 40C43.5 41.1046 44.3954 42 45.5 42Z" fill="#111111"/>
+<path id="Vector_9" d="M36 47C38.6667 49 41.3333 49 44 47" stroke-width="2" stroke-linecap="round" stroke="#7A3E2B"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_62">
+<path d="M0 40C0 17.9086 17.9086 0 40 0V0C62.0914 0 80 17.9086 80 40V40C80 62.0914 62.0914 80 40 80V80C17.9086 80 0 62.0914 0 40V40Z" fill="white"/>
+</clipPath>
+</defs>
+</svg>

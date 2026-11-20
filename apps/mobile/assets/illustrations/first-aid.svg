@@ -1,0 +1,10 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/First aid">
+<path id="Vector" d="M35 15H13C9.13401 15 6 18.134 6 22V33C6 36.866 9.13401 40 13 40H35C38.866 40 42 36.866 42 33V22C42 18.134 38.866 15 35 15Z" fill="#FF88D3" stroke-width="2" stroke="#111111"/>
+<path id="Vector_2" d="M18 15V12C18 11.2044 18.3161 10.4413 18.8787 9.87868C19.4413 9.31607 20.2044 9 21 9H27C27.7956 9 28.5587 9.31607 29.1213 9.87868C29.6839 10.4413 30 11.2044 30 12V15" stroke-width="2" stroke="#111111"/>
+<g id="Vector_3">
+<path d="M24 21V34ZM17.5 27.5H30.5Z" fill="black"/>
+<path d="M24 21V34M17.5 27.5H30.5" stroke-width="4" stroke-linecap="round" stroke="white"/>
+</g>
+</g>
+</svg>

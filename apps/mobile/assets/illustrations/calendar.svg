@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Illustration/Calendar">
+<path id="Vector" d="M34 10H14C10.134 10 7 13.134 7 17V34C7 37.866 10.134 41 14 41H34C37.866 41 41 37.866 41 34V17C41 13.134 37.866 10 34 10Z" fill="white" stroke-width="2" stroke="#111111"/>
+<path id="Vector_2" d="M7 17C7 15.1435 7.7375 13.363 9.05025 12.0503C10.363 10.7375 12.1435 10 14 10H34C35.8565 10 37.637 10.7375 38.9497 12.0503C40.2625 13.363 41 15.1435 41 17V20H7V17Z" fill="#FF88D3" stroke-width="2" stroke="#111111"/>
+<g id="Vector_3">
+<path d="M16 6V14ZM32 6V14Z" fill="black"/>
+<path d="M16 6V14M32 6V14" stroke-width="2.5" stroke-linecap="round" stroke="#111111"/>
+</g>
+<path id="Vector_4" d="M18.5 26H15.5C14.6716 26 14 26.6716 14 27.5V29.5C14 30.3284 14.6716 31 15.5 31H18.5C19.3284 31 20 30.3284 20 29.5V27.5C20 26.6716 19.3284 26 18.5 26Z" fill="#84E2FA"/>
+<path id="Vector_5" d="M25.5 26H22.5C21.6716 26 21 26.6716 21 27.5V29.5C21 30.3284 21.6716 31 22.5 31H25.5C26.3284 31 27 30.3284 27 29.5V27.5C27 26.6716 26.3284 26 25.5 26Z" fill="#A6F686"/>
+<path id="Vector_6" d="M32.5 26H29.5C28.6716 26 28 26.6716 28 27.5V29.5C28 30.3284 28.6716 31 29.5 31H32.5C33.3284 31 34 30.3284 34 29.5V27.5C34 26.6716 33.3284 26 32.5 26Z" fill="#FFCD20"/>
+<path id="Vector_7" d="M18.5 33H15.5C14.6716 33 14 33.6716 14 34.5V35.5C14 36.3284 14.6716 37 15.5 37H18.5C19.3284 37 20 36.3284 20 35.5V34.5C20 33.6716 19.3284 33 18.5 33Z" fill="#EBE7E2"/>
+</g>
+</svg>
