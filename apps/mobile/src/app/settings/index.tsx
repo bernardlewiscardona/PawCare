@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { SelectSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
 import { useToast } from '@/components/ui/feedback';
@@ -29,6 +30,7 @@ export default function SettingsScreen() {
   const [picker, setPicker] = useState(false);
   const [pendingZone, setPendingZone] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({});
+  const guard = useDiscardGuard({ name, phone, zone }, 'profile');
 
   const save = () => {
     const next: typeof errors = {};
@@ -44,7 +46,7 @@ export default function SettingsScreen() {
       timeZone: zone,
     });
     toast.show('Profile saved');
-    router.back();
+    guard.leave(() => router.back());
   };
 
   return (
@@ -97,11 +99,13 @@ export default function SettingsScreen() {
         title="Sign out"
         icon="log-out"
         chevron={false}
-        onPress={() => {
-          actions.signOut();
-          router.dismissAll();
-          router.replace('/');
-        }}
+        onPress={() =>
+          guard.leave(() => {
+            actions.signOut();
+            router.dismissAll();
+            router.replace('/');
+          })
+        }
       />
       <ListItem
         title="Delete account"
@@ -133,6 +137,7 @@ export default function SettingsScreen() {
           setPendingZone(null);
         }}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { SelectSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
 import { useToast } from '@/components/ui/feedback';
@@ -42,6 +43,7 @@ export default function NewSupplyScreen() {
   const [errors, setErrors] = useState<
     Partial<Record<'name' | 'category' | 'unit' | 'alertAt', string>>
   >({});
+  const guard = useDiscardGuard({ name, category, unit, petIds, alertAt, lead }, 'item');
 
   const save = () => {
     const next: typeof errors = {};
@@ -66,7 +68,7 @@ export default function NewSupplyScreen() {
       expiryLeadDays: lead === '7' ? 7 : 30,
     });
     toast.show('Item added');
-    router.replace(`/supplies/${id}`);
+    guard.leave(() => router.replace(`/supplies/${id}`));
   };
 
   return (
@@ -146,6 +148,7 @@ export default function NewSupplyScreen() {
         onSelect={setUnit}
         onClose={() => setUnitPicker(false)}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }

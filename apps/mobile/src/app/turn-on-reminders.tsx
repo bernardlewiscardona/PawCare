@@ -16,6 +16,8 @@ export default function TurnOnRemindersScreen() {
   const { actions } = useStore();
   const finish = (push: boolean) => {
     actions.updatePrefs({ push });
+    // Home replaces the whole onboarding stack (and fades in), so Back can't return to it.
+    router.dismissAll();
     router.replace('/home');
   };
   return (

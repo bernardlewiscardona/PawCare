@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { DateSheet, TimeSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
 import { Banner, useToast } from '@/components/ui/feedback';
@@ -48,6 +49,10 @@ export function VisitForm({ visit }: { visit?: Visit }) {
   const [sheet, setSheet] = useState<'date' | 'start' | 'end' | null>(null);
   const [overlap, setOverlap] = useState<Visit | null>(null);
   const [errors, setErrors] = useState<Errors>({});
+  const guard = useDiscardGuard(
+    { title, provider, date, start, end, contact, location, notes },
+    'visit',
+  );
 
   const pet = state.pets.find((p) => p.id === petId);
   const others = state.visits.filter(
@@ -72,11 +77,11 @@ export function VisitForm({ visit }: { visit?: Visit }) {
     if (visit) {
       actions.updateVisit(visit.id, data);
       toast.show('Visit updated in your diary');
-      router.back();
+      guard.leave(() => router.back());
     } else {
       const id = actions.addVisit(data);
       toast.show(DIARY_SAVED);
-      router.replace(`/visits/${id}`);
+      guard.leave(() => router.replace(`/visits/${id}`));
     }
   };
 
@@ -263,6 +268,7 @@ export function VisitForm({ visit }: { visit?: Visit }) {
           commit();
         }}
       />
+      {guard.dialog}
       <View style={styles.spacer} />
     </StackScreen>
   );

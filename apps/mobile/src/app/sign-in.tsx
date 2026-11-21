@@ -33,6 +33,8 @@ export default function SignInScreen() {
         return;
       }
       actions.signIn();
+      // Home replaces the whole auth stack (and fades in), so Back can't return to sign-in.
+      router.dismissAll();
       router.replace('/home');
     }, 700);
   };
