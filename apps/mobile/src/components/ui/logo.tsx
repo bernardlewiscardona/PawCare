@@ -1,17 +1,20 @@
-import { View } from 'react-native';
-import { color as palette } from '@/theme/tokens';
-import LogoMark from '../../../assets/avatars/logo-mark.svg';
+import { Image, View } from 'react-native';
+import { shadow } from '@/theme/tokens';
+import logo from '../../../assets/logo.png';
 
-/** Figma "Logo/Mark" (64 px artboard), announced as "PawCare". */
+/** Corner radius as a share of the mark's size, as on the Figma "Logo/Mark" (18 of 64). */
+const CORNER = 18 / 64;
+
+/** Brand mark: the PawCare app icon (Glossy Heart Paw), announced as "PawCare". */
 export function Logo({ size = 72 }: { size?: number }) {
   return (
     <View
       accessible
       accessibilityRole="image"
       accessibilityLabel="PawCare"
-      style={{ width: size, height: size }}
+      style={[shadow.soft, { width: size, height: size, borderRadius: size * CORNER }]}
     >
-      <LogoMark width={size} height={size} color={palette.text.primary} />
+      <Image source={logo} style={{ width: size, height: size }} />
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { DateSheet, SelectSheet } from '@/components/sheets';
 import { ForPet } from '@/components/for-pet';
 import { Banner, useToast } from '@/components/ui/feedback';
@@ -38,6 +39,7 @@ export function MedicalForm({
   const [errors, setErrors] = useState<Errors>({});
 
   const dirty = !record && Boolean(type || date || title || provider || notes);
+  const guard = useDiscardGuard({ type, date, title, provider, visitId, notes }, 'medical record');
   const visits = state.visits.filter((v) => v.petId === petId && v.status === 'completed');
   const visit = visits.find((v) => v.id === visitId);
 
@@ -73,11 +75,11 @@ export function MedicalForm({
     if (record) {
       actions.updateMedical(record.id, data);
       toast.show('Medical record saved');
-      router.back();
+      guard.leave(() => router.back());
     } else {
       const id = actions.addMedical(data);
       toast.show('Medical record saved');
-      router.replace(`/records/${id}`);
+      guard.leave(() => router.replace(`/records/${id}`));
     }
   };
 
@@ -192,6 +194,7 @@ export function MedicalForm({
           setSheet(null);
         }}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }

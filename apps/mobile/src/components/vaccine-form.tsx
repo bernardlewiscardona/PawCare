@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { ForPet } from '@/components/for-pet';
 import { DateSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
@@ -39,6 +40,7 @@ export function VaccineForm({ vaccine }: { vaccine?: Vaccine }) {
   ).filter((v) => v.id !== vaccine?.id);
   const options = [...dues, ...state.vaccines.filter((v) => vaccine?.fulfils.includes(v.id))];
   const dirty = !vaccine && Boolean(name || givenOn || batch || provider || nextDueOn);
+  const guard = useDiscardGuard({ name, givenOn, batch, provider, nextDueOn, fulfils }, 'vaccine');
 
   const reset = (nextPet: string) => {
     setPetId(nextPet);
@@ -79,11 +81,11 @@ export function VaccineForm({ vaccine }: { vaccine?: Vaccine }) {
     if (vaccine) {
       actions.updateVaccine(vaccine.id, data);
       toast.show(message);
-      router.back();
+      guard.leave(() => router.back());
     } else {
       const id = actions.addVaccine(data);
       toast.show(message);
-      router.replace(`/vaccines/${id}`);
+      guard.leave(() => router.replace(`/vaccines/${id}`));
     }
   };
 
@@ -191,6 +193,7 @@ export function VaccineForm({ vaccine }: { vaccine?: Vaccine }) {
           setPicker(null);
         }}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }

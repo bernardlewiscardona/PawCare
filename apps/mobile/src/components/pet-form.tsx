@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { DateSheet } from '@/components/sheets';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { useToast } from '@/components/ui/feedback';
@@ -45,6 +46,21 @@ export function PetForm({ pet, onboarding = false }: { pet?: Pet; onboarding?: b
   const [microchip, setMicrochip] = useState(pet?.microchip ?? '');
   const [picker, setPicker] = useState<'birth' | 'measured' | null>(null);
   const [errors, setErrors] = useState<Errors>({});
+  const guard = useDiscardGuard(
+    {
+      name,
+      species,
+      otherSpecies,
+      breed,
+      sex,
+      birthDate,
+      estimated,
+      weight,
+      measuredOn,
+      microchip,
+    },
+    'pet profile',
+  );
 
   const save = () => {
     const next: Errors = {};
@@ -77,13 +93,12 @@ export function PetForm({ pet, onboarding = false }: { pet?: Pet; onboarding?: b
     if (pet) {
       actions.updatePet(pet.id, data);
       toast.show(`${trimmed}’s profile saved`);
-      router.back();
+      guard.leave(() => router.back());
       return;
     }
     const id = actions.addPet(data);
     toast.show(`${trimmed}’s profile saved`);
-    if (onboarding) router.replace('/turn-on-reminders');
-    else router.replace(`/pets/${id}`);
+    guard.leave(() => router.replace(onboarding ? '/turn-on-reminders' : `/pets/${id}`));
   };
 
   return (
@@ -207,6 +222,7 @@ export function PetForm({ pet, onboarding = false }: { pet?: Pet; onboarding?: b
           setPicker(null);
         }}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }

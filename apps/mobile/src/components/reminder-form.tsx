@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { DateSheet, TimeSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ export function ReminderForm({ reminder }: { reminder?: CustomReminder }) {
   const [sheet, setSheet] = useState<'start' | 'time' | 'end' | 'delete' | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const changedTime = !reminder || reminder.startDate !== startDate || reminder.time !== time;
+  const guard = useDiscardGuard({ title, startDate, time, repeat, endDate, enabled }, 'reminder');
 
   const save = () => {
     const next: Errors = {};
@@ -74,7 +76,7 @@ export function ReminderForm({ reminder }: { reminder?: CustomReminder }) {
     if (reminder) actions.updateCustomReminder(reminder.id, data);
     else actions.addCustomReminder(data);
     toast.show('Reminder saved');
-    router.back();
+    guard.leave(() => router.back());
   };
 
   return (
@@ -202,12 +204,13 @@ export function ReminderForm({ reminder }: { reminder?: CustomReminder }) {
               actions.deleteCustomReminder(reminder.id);
               setSheet(null);
               toast.show('Reminder deleted');
-              router.back();
+              guard.leave(() => router.back());
             }}
           />
           <Button label="Keep it" variant="ghost" block onPress={() => setSheet(null)} />
         </BottomSheet>
       ) : null}
+      {guard.dialog}
     </StackScreen>
   );
 }

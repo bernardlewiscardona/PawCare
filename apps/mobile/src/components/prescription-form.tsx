@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useDiscardGuard } from '@/components/discard-guard';
 import { ForPet } from '@/components/for-pet';
 import { DateSheet, SelectSheet, TimeSheet } from '@/components/sheets';
 import { AppText } from '@/components/ui/app-text';
@@ -52,6 +53,10 @@ export function PrescriptionForm({ prescription }: { prescription?: Prescription
   const supply = supplies.find((s) => s.id === supplyId);
   const dirty =
     !prescription && Boolean(medication || instructions || prescriber || startDate || times.length);
+  const guard = useDiscardGuard(
+    { medication, instructions, prescriber, startDate, endDate, mode, times, supplyId },
+    'prescription',
+  );
 
   const reset = (nextPet: string) => {
     setPetId(nextPet);
@@ -93,11 +98,11 @@ export function PrescriptionForm({ prescription }: { prescription?: Prescription
     if (prescription) {
       actions.updatePrescription(prescription.id, data);
       toast.show(message);
-      router.back();
+      guard.leave(() => router.back());
     } else {
       const id = actions.addPrescription(data);
       toast.show(message);
-      router.replace(`/prescriptions/${id}`);
+      guard.leave(() => router.replace(`/prescriptions/${id}`));
     }
   };
 
@@ -239,6 +244,7 @@ export function PrescriptionForm({ prescription }: { prescription?: Prescription
         onSelect={setSupplyId}
         onClose={() => setSheet(null)}
       />
+      {guard.dialog}
     </StackScreen>
   );
 }
