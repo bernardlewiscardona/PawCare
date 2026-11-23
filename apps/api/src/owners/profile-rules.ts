@@ -1,9 +1,5 @@
 import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
-
-/** A rule's rejection, carrying the field message shown to the owner. */
-export interface RuleError {
-  error: string;
-}
+import type { RuleError } from '../common/errors/rule-error.js';
 
 const NAME_ERROR: RuleError = { error: 'Enter a name of 1–100 characters.' };
 const ZONE_ERROR: RuleError = { error: 'Choose a valid time zone.' };
