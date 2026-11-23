@@ -1,6 +1,6 @@
 # PF-01 — Owner profile API
 
-Date: 23 Nov 2026 · Status: approved 23 Nov 2026 · Ticket: PF-01 (spec: `docs/spec/epics/PF.md`)
+Date: 23 Nov 2026 · Status: approved 23 Nov 2026, implemented on `PF-01-owner-profile` · Ticket: PF-01 (spec: `docs/spec/epics/PF.md`)
 
 ## Intent
 

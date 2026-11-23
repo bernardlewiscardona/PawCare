@@ -14,7 +14,9 @@ const PHONE_ERROR: RuleError = {
 /** Trimmed display name of 1–100 characters (Unicode code points, matching the DB CHECK). */
 export function normalizeDisplayName(value: string): string | RuleError {
   const name = value.trim();
-  const length = [...name].length;
+  // Code points, not graphemes: the owners_display_name_check CHECK uses char_length, which
+  // counts code points, so the API and the database agree on what fits.
+  const length = Array.from(name).length;
   return length >= 1 && length <= 100 ? name : NAME_ERROR;
 }
 
