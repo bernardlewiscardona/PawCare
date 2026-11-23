@@ -1,14 +1,905 @@
-// PawCare database schema.
-// Business tables are added by their feature tickets (see docs/design/erd-and-flows.md).
-// Constraints Prisma can't express (CHECKs, partial unique indexes, composite same-owner FKs)
-// go into the generated migration SQL by hand.
+// PawCare database schema — implements docs/design/erd-and-flows.md with the fixes from
+// docs/design/erd-review.md and decisions D-ERD-1, D-ERD-3 and D-ERD-4 (docs/decisions.md).
+//
+// Conventions
+// - IDs are UUIDv7, generated in the database by uuidv7() (defined in the first migration).
+// - Every owner resource carries owner_id, and every FK between owner resources is a composite
+//   that includes owner_id, so a row can never point at another owner's data. Relations never
+//   cascade: everyday corrections archive or void, and FN-02 deletes in FK-safe order.
+// - Date-only facts use @db.Date; instants use timestamptz; owner-local wall times use time or
+//   timestamp without zone next to an IANA zone column.
+// - Text lengths, CHECKs, triggers and the subtype rule are hand-written in the migration SQL;
+//   Prisma can't express them. The tests in test/schema-*.e2e-spec.ts pin them down.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "esm"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "esm"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// =============================================================================================
+// 1. Ownership and health records
+// =============================================================================================
+
+enum AccountStatus {
+  ACTIVE
+  DELETION_REQUESTED
+
+  @@map("account_status")
+}
+
+model Owner {
+  id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  authSubject   String        @unique @map("auth_subject")
+  displayName   String        @map("display_name")
+  phone         String?
+  timeZone      String        @map("time_zone")
+  avatarAssetId String?       @map("avatar_asset_id") @db.Uuid
+  accountStatus AccountStatus @default(ACTIVE) @map("account_status")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version       Int           @default(1)
+
+  avatarAsset         FileAsset?           @relation("OwnerAvatar", fields: [id, avatarAssetId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  fileAssets          FileAsset[]          @relation("FileAssetOwner")
+  pets                Pet[]
+  inventoryItems      InventoryItem[]
+  reminderPreferences ReminderPreferences?
+  deviceTokens        DeviceToken[]
+  reminderSchedules   ReminderSchedule[]
+  doseLogsActed       DoseLog[]            @relation("DoseLogActor")
+  outcomesRecorded    Appointment[]        @relation("AppointmentOutcomeActor")
+  idempotencyRequests IdempotencyRequest[]
+  auditEvents         AuditEvent[]
+  outboxEvents        OutboxEvent[]
+  deletionJobs        DeletionJob[]
+
+  @@map("owners")
+}
+
+enum FilePurpose {
+  ATTACHMENT
+  PET_PHOTO
+  OWNER_AVATAR
+
+  @@map("file_purpose")
+}
+
+/// Upload and malware-scan lifecycle (MR-02). Only CLEAN assets may be downloaded.
+enum ScanStatus {
+  PENDING_UPLOAD
+  SCANNING
+  CLEAN
+  REJECTED
+  FAILED
+
+  @@map("scan_status")
+}
+
+model FileAsset {
+  id           String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId      String      @map("owner_id") @db.Uuid
+  objectKey    String      @unique @map("object_key")
+  originalName String      @map("original_name")
+  mimeType     String      @map("mime_type")
+  sizeBytes    BigInt      @map("size_bytes")
+  purpose      FilePurpose
+  scanStatus   ScanStatus  @default(PENDING_UPLOAD) @map("scan_status")
+  removedAt    DateTime?   @map("removed_at") @db.Timestamptz(3)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version      Int         @default(1)
+
+  owner      Owner       @relation("FileAssetOwner", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  avatarOf   Owner[]     @relation("OwnerAvatar")
+  photoOf    Pet[]
+  attachment Attachment?
+
+  @@unique([ownerId, id])
+  @@index([scanStatus, createdAt])
+  @@map("file_assets")
+}
+
+enum Species {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  OTHER
+
+  @@map("species")
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  UNKNOWN
+
+  @@map("sex")
+}
+
+model Pet {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId            String    @map("owner_id") @db.Uuid
+  name               String
+  species            Species
+  speciesOther       String?   @map("species_other")
+  breed              String?
+  sex                Sex       @default(UNKNOWN)
+  birthDate          DateTime? @map("birth_date") @db.Date
+  birthDateEstimated Boolean   @default(false) @map("birth_date_estimated")
+  currentWeightKg    Decimal?  @map("current_weight_kg") @db.Decimal(7, 3)
+  weightMeasuredOn   DateTime? @map("weight_measured_on") @db.Date
+  microchip          String?
+  photoAssetId       String?   @map("photo_asset_id") @db.Uuid
+  archivedAt         DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version            Int       @default(1)
+
+  owner           Owner              @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  photoAsset      FileAsset?         @relation(fields: [ownerId, photoAssetId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  careRecords     CareRecord[]
+  inventoryPets   InventoryPet[]
+  customReminders CustomReminder[]
+  stockUses       StockTransaction[]
+
+  @@unique([ownerId, id])
+  @@index([ownerId, archivedAt])
+  @@map("pets")
+}
+
+enum CareRecordKind {
+  MEDICAL
+  VACCINE
+  PRESCRIPTION
+  APPOINTMENT
+
+  @@map("care_record_kind")
+}
+
+enum CareRecordStatus {
+  ACTIVE
+  VOIDED
+
+  @@map("care_record_status")
+}
+
+enum Provenance {
+  OWNER_ENTERED
+
+  @@map("provenance")
+}
+
+/// Shared parent of the four care kinds. Exactly one matching subtype row exists by commit
+/// (deferred trigger). Subtypes reference (owner_id, pet_id, id, kind), so owner, pet and kind
+/// can't change once the subtype exists. occurrence_date is the local date shown on the timeline.
+model CareRecord {
+  id             String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId        String           @map("owner_id") @db.Uuid
+  petId          String           @map("pet_id") @db.Uuid
+  kind           CareRecordKind
+  occurrenceDate DateTime         @map("occurrence_date") @db.Date
+  status         CareRecordStatus @default(ACTIVE)
+  provenance     Provenance       @default(OWNER_ENTERED)
+  voidReason     String?          @map("void_reason")
+  voidedAt       DateTime?        @map("voided_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version        Int              @default(1)
+
+  pet               Pet                @relation(fields: [ownerId, petId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  medicalEvent      MedicalEvent?
+  vaccination       Vaccination?
+  prescription      Prescription?
+  appointment       Appointment?
+  attachments       Attachment[]
+  reminderSchedules ReminderSchedule[]
+
+  @@unique([ownerId, id, kind])
+  @@unique([ownerId, petId, id, kind])
+  @@index([ownerId, petId, occurrenceDate, id])
+  @@map("care_records")
+}
+
+enum MedicalEventType {
+  VISIT
+  DIAGNOSIS
+  PROCEDURE
+  ALLERGY
+  GENERAL_NOTE
+
+  @@map("medical_event_type")
+}
+
+model MedicalEvent {
+  recordId      String           @id @map("record_id") @db.Uuid
+  ownerId       String           @map("owner_id") @db.Uuid
+  petId         String           @map("pet_id") @db.Uuid
+  kind          CareRecordKind   @default(MEDICAL)
+  appointmentId String?          @map("appointment_id") @db.Uuid
+  eventType     MedicalEventType @map("event_type")
+  title         String
+  notes         String?
+  providerName  String?          @map("provider_name")
+
+  careRecord  CareRecord   @relation(fields: [ownerId, petId, recordId, kind], references: [ownerId, petId, id, kind], onDelete: Restrict, onUpdate: Restrict)
+  /// Same owner and pet. The application links only Completed appointments (AP-05).
+  appointment Appointment? @relation(fields: [ownerId, petId, appointmentId], references: [ownerId, petId, recordId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ownerId, petId, recordId, kind])
+  @@index([ownerId, petId, appointmentId])
+  @@map("medical_events")
+}
+
+/// Links a file to a medical, vaccine or prescription record. Created when the upload starts,
+/// so pending/scanning/failed files show on their record and count toward the limit of five.
+model Attachment {
+  id          String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId     String         @map("owner_id") @db.Uuid
+  recordId    String         @map("record_id") @db.Uuid
+  recordKind  CareRecordKind @map("record_kind")
+  fileAssetId String         @map("file_asset_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  careRecord CareRecord @relation(fields: [ownerId, recordId, recordKind], references: [ownerId, id, kind], onDelete: Restrict, onUpdate: Restrict)
+  fileAsset  FileAsset  @relation(fields: [ownerId, fileAssetId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ownerId, fileAssetId])
+  @@index([ownerId, recordId])
+  @@map("attachments")
+}
+
+// =============================================================================================
+// 2. Vaccines, prescriptions and appointments
+// =============================================================================================
+
+model Vaccination {
+  recordId       String         @id @map("record_id") @db.Uuid
+  ownerId        String         @map("owner_id") @db.Uuid
+  petId          String         @map("pet_id") @db.Uuid
+  kind           CareRecordKind @default(VACCINE)
+  vaccineName    String         @map("vaccine_name")
+  administeredOn DateTime       @map("administered_on") @db.Date
+  providerName   String?        @map("provider_name")
+  batchLabel     String?        @map("batch_label")
+
+  careRecord CareRecord      @relation(fields: [ownerId, petId, recordId, kind], references: [ownerId, petId, id, kind], onDelete: Restrict, onUpdate: Restrict)
+  nextDue    VaccineDueItem? @relation("DueItemSource")
+  fulfils    VaccineDueItem? @relation("DueItemFulfilment")
+
+  @@unique([ownerId, petId, recordId, kind])
+  @@unique([ownerId, petId, recordId])
+  @@map("vaccinations")
+}
+
+/// The owner-entered next due date of one administration. Due/overdue/fulfilled are derived.
+/// One administration fulfils at most one due item (D-ERD-3), always chosen explicitly.
+model VaccineDueItem {
+  id                       String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId                  String   @map("owner_id") @db.Uuid
+  petId                    String   @map("pet_id") @db.Uuid
+  vaccinationId            String   @map("vaccination_id") @db.Uuid
+  dueOn                    DateTime @map("due_on") @db.Date
+  fulfilledByVaccinationId String?  @map("fulfilled_by_vaccination_id") @db.Uuid
+  scheduleVersion          Int      @default(1) @map("schedule_version")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version                  Int      @default(1)
+
+  vaccination Vaccination  @relation("DueItemSource", fields: [ownerId, petId, vaccinationId], references: [ownerId, petId, recordId], map: "vaccine_due_items_vaccination_id_fkey", onDelete: Restrict, onUpdate: Restrict)
+  fulfilledBy Vaccination? @relation("DueItemFulfilment", fields: [ownerId, petId, fulfilledByVaccinationId], references: [ownerId, petId, recordId], map: "vaccine_due_items_fulfilled_by_vaccination_id_fkey", onDelete: Restrict, onUpdate: Restrict)
+
+  // Composite forms of UNIQUE(vaccination_id) and UNIQUE(fulfilled_by_vaccination_id).
+  @@unique([ownerId, petId, vaccinationId])
+  @@unique([ownerId, petId, fulfilledByVaccinationId], map: "vaccine_due_items_fulfilled_by_vaccination_id_key")
+  @@index([ownerId, dueOn])
+  @@map("vaccine_due_items")
+}
+
+enum ScheduleMode {
+  FIXED_DAILY
+  AS_NEEDED
+  MANUAL
+
+  @@map("schedule_mode")
+}
+
+/// Owner-entered prescription. Lifecycle (Planned/Active/Ended) is derived from dates;
+/// stopped_at and the parent's VOIDED status are explicit. time_zone is the effective zone for
+/// the daily times; when follows_owner_zone is true it moves with the owner zone (D-ERD-1).
+model Prescription {
+  recordId         String         @id @map("record_id") @db.Uuid
+  ownerId          String         @map("owner_id") @db.Uuid
+  petId            String         @map("pet_id") @db.Uuid
+  kind             CareRecordKind @default(PRESCRIPTION)
+  medicationName   String         @map("medication_name")
+  doseInstructions String         @map("dose_instructions")
+  prescriberName   String?        @map("prescriber_name")
+  startsOn         DateTime       @map("starts_on") @db.Date
+  endsOn           DateTime?      @map("ends_on") @db.Date
+  scheduleMode     ScheduleMode   @map("schedule_mode")
+  timeZone         String         @map("time_zone")
+  followsOwnerZone Boolean        @default(true) @map("follows_owner_zone")
+  inventoryItemId  String?        @map("inventory_item_id") @db.Uuid
+  stoppedAt        DateTime?      @map("stopped_at") @db.Timestamptz(3)
+  scheduleVersion  Int            @default(1) @map("schedule_version")
+
+  careRecord      CareRecord         @relation(fields: [ownerId, petId, recordId, kind], references: [ownerId, petId, id, kind], onDelete: Restrict, onUpdate: Restrict)
+  inventoryItem   InventoryItem?     @relation(fields: [ownerId, inventoryItemId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  times           PrescriptionTime[]
+  doseOccurrences DoseOccurrence[]
+  stockUses       StockTransaction[]
+
+  @@unique([ownerId, petId, recordId, kind])
+  @@unique([ownerId, recordId])
+  @@index([ownerId, inventoryItemId])
+  @@map("prescriptions")
+}
+
+model PrescriptionTime {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId        String   @map("owner_id") @db.Uuid
+  prescriptionId String   @map("prescription_id") @db.Uuid
+  localTime      DateTime @map("local_time") @db.Time(0)
+
+  prescription Prescription @relation(fields: [ownerId, prescriptionId], references: [ownerId, recordId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([prescriptionId, localTime])
+  @@map("prescription_times")
+}
+
+/// Generated over a rolling window. At most one non-invalidated occurrence per instant, so a
+/// new schedule version can't duplicate a dose that was already logged under the old one.
+model DoseOccurrence {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId         String    @map("owner_id") @db.Uuid
+  prescriptionId  String    @map("prescription_id") @db.Uuid
+  scheduledAtUtc  DateTime  @map("scheduled_at_utc") @db.Timestamptz(3)
+  scheduleVersion Int       @map("schedule_version")
+  invalidatedAt   DateTime? @map("invalidated_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  prescription        Prescription         @relation(fields: [ownerId, prescriptionId], references: [ownerId, recordId], onDelete: Restrict, onUpdate: Restrict)
+  log                 DoseLog?
+  reminderOccurrences ReminderOccurrence[]
+
+  @@unique([ownerId, id])
+  @@unique([prescriptionId, scheduleVersion, scheduledAtUtc], map: "dose_occurrences_schedule_version_scheduled_at_utc_key")
+  @@unique([prescriptionId, scheduledAtUtc], map: "dose_occurrences_one_valid_per_instant_key", where: raw("invalidated_at IS NULL"))
+  @@index([ownerId, scheduledAtUtc])
+  @@map("dose_occurrences")
+}
+
+enum DoseLogStatus {
+  TAKEN
+  SKIPPED
+
+  @@map("dose_log_status")
+}
+
+/// The current owner-recorded result of one dose. Corrections are recorded in audit_events.
+model DoseLog {
+  id               String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId          String        @map("owner_id") @db.Uuid
+  doseOccurrenceId String        @map("dose_occurrence_id") @db.Uuid
+  status           DoseLogStatus
+  actedAt          DateTime      @map("acted_at") @db.Timestamptz(3)
+  actorOwnerId     String        @map("actor_owner_id") @db.Uuid
+  note             String?
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version          Int           @default(1)
+
+  doseOccurrence DoseOccurrence @relation(fields: [ownerId, doseOccurrenceId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  actor          Owner          @relation("DoseLogActor", fields: [actorOwnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ownerId, doseOccurrenceId])
+  @@index([actorOwnerId])
+  @@map("dose_logs")
+}
+
+enum AppointmentStatus {
+  PLANNED
+  COMPLETED
+  CANCELED
+  MISSED
+
+  @@map("appointment_status")
+}
+
+/// Owner diary entry, never a booking. Needs Update (Planned and started) is derived.
+/// When rescheduled, care_records.occurrence_date must be updated in the same transaction.
+model Appointment {
+  recordId          String            @id @map("record_id") @db.Uuid
+  ownerId           String            @map("owner_id") @db.Uuid
+  petId             String            @map("pet_id") @db.Uuid
+  kind              CareRecordKind    @default(APPOINTMENT)
+  title             String
+  providerName      String            @map("provider_name")
+  providerContact   String?           @map("provider_contact")
+  location          String?
+  notes             String?
+  startsAtUtc       DateTime          @map("starts_at_utc") @db.Timestamptz(3)
+  endsAtUtc         DateTime          @map("ends_at_utc") @db.Timestamptz(3)
+  timeZone          String            @map("time_zone")
+  status            AppointmentStatus @default(PLANNED)
+  cancelReason      String?           @map("cancel_reason")
+  outcomeRecordedAt DateTime?         @map("outcome_recorded_at") @db.Timestamptz(3)
+  outcomeActorId    String?           @map("outcome_actor_id") @db.Uuid
+  scheduleVersion   Int               @default(1) @map("schedule_version")
+
+  careRecord    CareRecord     @relation(fields: [ownerId, petId, recordId, kind], references: [ownerId, petId, id, kind], onDelete: Restrict, onUpdate: Restrict)
+  outcomeActor  Owner?         @relation("AppointmentOutcomeActor", fields: [outcomeActorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  medicalEvents MedicalEvent[]
+
+  @@unique([ownerId, petId, recordId, kind])
+  @@unique([ownerId, petId, recordId])
+  @@index([ownerId, startsAtUtc, recordId])
+  @@index([ownerId, petId, status, startsAtUtc])
+  @@index([outcomeActorId])
+  @@map("appointments")
+}
+
+// =============================================================================================
+// 3. Household inventory
+// =============================================================================================
+
+enum InventoryCategory {
+  FOOD
+  MEDICATION
+  SUPPLEMENT
+  SUPPLY
+
+  @@map("inventory_category")
+}
+
+/// PIECE, TABLET, CAPSULE and SACHET are discrete: their quantities must be whole numbers.
+enum InventoryUnit {
+  PIECE
+  TABLET
+  CAPSULE
+  SACHET
+  GRAM
+  MILLILITER
+
+  @@map("inventory_unit")
+}
+
+/// Household item, owned by the owner rather than a pet. The unit never changes (every item has
+/// an OPENING transaction from creation). Physical/usable quantity are derived from batches.
+model InventoryItem {
+  id                String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId           String            @map("owner_id") @db.Uuid
+  name              String
+  category          InventoryCategory
+  unit              InventoryUnit
+  lowStockThreshold Decimal?          @map("low_stock_threshold") @db.Decimal(12, 3)
+  expiryLeadDays    Int               @default(7) @map("expiry_lead_days")
+  archivedAt        DateTime?         @map("archived_at") @db.Timestamptz(3)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version           Int               @default(1)
+
+  owner         Owner              @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pets          InventoryPet[]
+  batches       StockBatch[]
+  transactions  StockTransaction[]
+  alerts        InventoryAlert[]
+  prescriptions Prescription[]
+
+  @@unique([ownerId, id])
+  @@map("inventory_items")
+}
+
+model InventoryPet {
+  ownerId   String   @map("owner_id") @db.Uuid
+  itemId    String   @map("item_id") @db.Uuid
+  petId     String   @map("pet_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  item InventoryItem @relation(fields: [ownerId, itemId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  pet  Pet           @relation(fields: [ownerId, petId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([itemId, petId])
+  @@index([ownerId, petId])
+  @@map("inventory_pets")
+}
+
+/// remaining_quantity is a cache of the batch's ledger entries: a deferred trigger checks they
+/// match at commit, and a CHECK keeps it non-negative. Lock the row before changing it.
+model StockBatch {
+  id                String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId           String    @map("owner_id") @db.Uuid
+  itemId            String    @map("item_id") @db.Uuid
+  batchLabel        String?   @map("batch_label")
+  expiresOn         DateTime? @map("expires_on") @db.Date
+  remainingQuantity Decimal   @default(0) @map("remaining_quantity") @db.Decimal(12, 3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  item    InventoryItem    @relation(fields: [ownerId, itemId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  entries StockEntry[]
+  alerts  InventoryAlert[]
+
+  @@unique([ownerId, itemId, id])
+  @@index([itemId, expiresOn])
+  @@map("stock_batches")
+}
+
+enum StockTransactionType {
+  OPENING
+  RESTOCK
+  USE
+  DISPOSE
+  ADJUST
+  REVERSE
+
+  @@map("stock_transaction_type")
+}
+
+/// Immutable ledger header. request_key is the client's idempotency key, unique per owner.
+/// A REVERSE negates every entry of one earlier transaction of the same item, at most once.
+model StockTransaction {
+  id                    String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId               String               @map("owner_id") @db.Uuid
+  itemId                String               @map("item_id") @db.Uuid
+  type                  StockTransactionType
+  reason                String?
+  petId                 String?              @map("pet_id") @db.Uuid
+  prescriptionId        String?              @map("prescription_id") @db.Uuid
+  reversesTransactionId String?              @unique @map("reverses_transaction_id") @db.Uuid
+  requestKey            String               @map("request_key")
+  recordedAt            DateTime             @default(now()) @map("recorded_at") @db.Timestamptz(3)
+
+  item         InventoryItem      @relation(fields: [ownerId, itemId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  pet          Pet?               @relation(fields: [ownerId, petId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  prescription Prescription?      @relation(fields: [ownerId, prescriptionId], references: [ownerId, recordId], onDelete: Restrict, onUpdate: Restrict)
+  reverses     StockTransaction?  @relation("Reversal", fields: [ownerId, itemId, reversesTransactionId], references: [ownerId, itemId, id], map: "stock_transactions_reverses_transaction_id_fkey", onDelete: Restrict, onUpdate: Restrict)
+  reversedBy   StockTransaction[] @relation("Reversal")
+  entries      StockEntry[]
+
+  @@unique([ownerId, requestKey])
+  @@unique([ownerId, itemId, id])
+  @@unique([ownerId, itemId, id, type])
+  @@index([itemId, recordedAt])
+  @@index([ownerId, petId])
+  @@index([ownerId, prescriptionId])
+  @@map("stock_transactions")
+}
+
+/// Immutable per-batch movement. transaction_type copies the header's type so a CHECK can
+/// enforce the sign: OPENING >= 0, RESTOCK > 0, USE/DISPOSE < 0, ADJUST/REVERSE non-zero.
+model StockEntry {
+  id              String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId         String               @map("owner_id") @db.Uuid
+  itemId          String               @map("item_id") @db.Uuid
+  transactionId   String               @map("transaction_id") @db.Uuid
+  transactionType StockTransactionType @map("transaction_type")
+  batchId         String               @map("batch_id") @db.Uuid
+  signedQuantity  Decimal              @map("signed_quantity") @db.Decimal(12, 3)
+
+  transaction StockTransaction @relation(fields: [ownerId, itemId, transactionId, transactionType], references: [ownerId, itemId, id, type], map: "stock_entries_transaction_id_fkey", onDelete: Restrict, onUpdate: Restrict)
+  batch       StockBatch       @relation(fields: [ownerId, itemId, batchId], references: [ownerId, itemId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([transactionId, batchId])
+  @@index([batchId])
+  @@map("stock_entries")
+}
+
+enum InventoryAlertType {
+  LOW_STOCK
+  EXPIRING
+  EXPIRED
+
+  @@map("inventory_alert_type")
+}
+
+model InventoryAlert {
+  id            String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId       String             @map("owner_id") @db.Uuid
+  itemId        String             @map("item_id") @db.Uuid
+  batchId       String?            @map("batch_id") @db.Uuid
+  type          InventoryAlertType
+  episodeNumber Int                @map("episode_number")
+  openedAt      DateTime           @default(now()) @map("opened_at") @db.Timestamptz(3)
+  resolvedAt    DateTime?          @map("resolved_at") @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  item              InventoryItem      @relation(fields: [ownerId, itemId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  batch             StockBatch?        @relation(fields: [ownerId, itemId, batchId], references: [ownerId, itemId, id], onDelete: Restrict, onUpdate: Restrict)
+  reminderSchedules ReminderSchedule[]
+
+  @@unique([ownerId, id])
+  @@unique([batchId, type])
+  @@unique([itemId], map: "inventory_alerts_one_open_low_stock_key", where: raw("type = 'LOW_STOCK' AND resolved_at IS NULL"))
+  @@unique([itemId, episodeNumber], map: "inventory_alerts_low_stock_episode_key", where: raw("type = 'LOW_STOCK'"))
+  @@map("inventory_alerts")
+}
+
+// =============================================================================================
+// 4. Reminders and delivery
+// =============================================================================================
+
+model ReminderPreferences {
+  ownerId                String   @id @map("owner_id") @db.Uuid
+  pushEnabled            Boolean  @default(false) @map("push_enabled")
+  appointmentLeadMinutes Int      @default(1440) @map("appointment_lead_minutes")
+  vaccineLeadDays        Int      @default(7) @map("vaccine_lead_days")
+  dateOnlyDeliveryTime   DateTime @default(dbgenerated("'09:00:00'::time without time zone")) @map("date_only_delivery_time") @db.Time(0)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version                Int      @default(1)
+
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("reminder_preferences")
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+
+  @@map("device_platform")
+}
+
+/// A push token for one owner. When a device signs in to another account, the old row is
+/// disabled and a new row is created, so deliveries can only use the current owner's token.
+model DeviceToken {
+  id         String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId    String         @map("owner_id") @db.Uuid
+  token      String
+  platform   DevicePlatform
+  enabled    Boolean        @default(true)
+  lastSeenAt DateTime       @map("last_seen_at") @db.Timestamptz(3)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner      Owner          @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  deliveries PushDelivery[]
+
+  @@unique([ownerId, id])
+  @@unique([token], map: "device_tokens_one_enabled_token_key", where: raw("enabled"))
+  @@map("device_tokens")
+}
+
+enum Recurrence {
+  NONE
+  DAILY
+
+  @@map("recurrence")
+}
+
+model CustomReminder {
+  id            String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId       String     @map("owner_id") @db.Uuid
+  petId         String     @map("pet_id") @db.Uuid
+  title         String
+  startsAtLocal DateTime   @map("starts_at_local") @db.Timestamp(0)
+  timeZone      String     @map("time_zone")
+  recurrence    Recurrence @default(NONE)
+  endsOn        DateTime?  @map("ends_on") @db.Date
+  enabled       Boolean    @default(true)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version       Int        @default(1)
+
+  pet               Pet                @relation(fields: [ownerId, petId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  reminderSchedules ReminderSchedule[]
+
+  @@unique([ownerId, id])
+  @@map("custom_reminders")
+}
+
+/// One schedule per source, with exactly one typed source FK. Care sources are vaccines,
+/// prescriptions and appointments only. A vaccine schedule resolves to its single due item.
+model ReminderSchedule {
+  id                  String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId             String          @map("owner_id") @db.Uuid
+  careRecordId        String?         @unique @map("care_record_id") @db.Uuid
+  careRecordKind      CareRecordKind? @map("care_record_kind")
+  customReminderId    String?         @unique @map("custom_reminder_id") @db.Uuid
+  inventoryAlertId    String?         @unique @map("inventory_alert_id") @db.Uuid
+  scheduleVersion     Int             @default(1) @map("schedule_version")
+  enabled             Boolean         @default(true)
+  suppressedByArchive Boolean         @default(false) @map("suppressed_by_archive")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version             Int             @default(1)
+
+  owner          Owner                @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  careRecord     CareRecord?          @relation(fields: [ownerId, careRecordId, careRecordKind], references: [ownerId, id, kind], map: "reminder_schedules_care_record_id_fkey", onDelete: Restrict, onUpdate: Restrict)
+  customReminder CustomReminder?      @relation(fields: [ownerId, customReminderId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  inventoryAlert InventoryAlert?      @relation(fields: [ownerId, inventoryAlertId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  occurrences    ReminderOccurrence[]
+
+  @@unique([ownerId, id])
+  @@map("reminder_schedules")
+}
+
+enum ReminderOccurrenceState {
+  PENDING
+  AVAILABLE
+  CANCELED
+  SUPPRESSED
+
+  @@map("reminder_occurrence_state")
+}
+
+/// Also the in-app inbox item. "Delayed" is derived from available_at - trigger_at_utc.
+model ReminderOccurrence {
+  id               String                  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId          String                  @map("owner_id") @db.Uuid
+  scheduleId       String                  @map("schedule_id") @db.Uuid
+  scheduleVersion  Int                     @map("schedule_version")
+  occurrenceKey    String                  @map("occurrence_key")
+  doseOccurrenceId String?                 @map("dose_occurrence_id") @db.Uuid
+  triggerAtUtc     DateTime                @map("trigger_at_utc") @db.Timestamptz(3)
+  state            ReminderOccurrenceState @default(PENDING)
+  availableAt      DateTime?               @map("available_at") @db.Timestamptz(3)
+  readAt           DateTime?               @map("read_at") @db.Timestamptz(3)
+  dismissedAt      DateTime?               @map("dismissed_at") @db.Timestamptz(3)
+  customDoneAt     DateTime?               @map("custom_done_at") @db.Timestamptz(3)
+  snoozedFromId    String?                 @map("snoozed_from_id") @db.Uuid
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  schedule       ReminderSchedule    @relation(fields: [ownerId, scheduleId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  doseOccurrence DoseOccurrence?     @relation(fields: [ownerId, doseOccurrenceId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  snoozedFrom    ReminderOccurrence? @relation("Snooze", fields: [ownerId, snoozedFromId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  snoozedTo      ReminderOccurrence? @relation("Snooze")
+  deliveries     PushDelivery[]
+
+  @@unique([ownerId, id])
+  @@unique([ownerId, snoozedFromId])
+  @@unique([scheduleId, scheduleVersion, occurrenceKey], map: "reminder_occurrences_occurrence_key_key")
+  @@index([state, triggerAtUtc])
+  @@index([ownerId, triggerAtUtc, id])
+  @@index([ownerId, doseOccurrenceId])
+  @@map("reminder_occurrences")
+}
+
+enum PushDeliveryState {
+  PENDING
+  ACCEPTED
+  RETRY
+  FAILED
+  SUPPRESSED
+
+  @@map("push_delivery_state")
+}
+
+/// One row per occurrence and device; retries reuse the row (1, 5 and 15 minutes).
+model PushDelivery {
+  id                   String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId              String            @map("owner_id") @db.Uuid
+  reminderOccurrenceId String            @map("reminder_occurrence_id") @db.Uuid
+  deviceTokenId        String            @map("device_token_id") @db.Uuid
+  state                PushDeliveryState @default(PENDING)
+  attemptCount         Int               @default(0) @map("attempt_count")
+  nextAttemptAt        DateTime?         @map("next_attempt_at") @db.Timestamptz(3)
+  providerMessageId    String?           @map("provider_message_id")
+  lastErrorCode        String?           @map("last_error_code")
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  reminderOccurrence ReminderOccurrence @relation(fields: [ownerId, reminderOccurrenceId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+  deviceToken        DeviceToken        @relation(fields: [ownerId, deviceTokenId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([reminderOccurrenceId, deviceTokenId])
+  @@index([state, nextAttemptAt])
+  @@index([ownerId, deviceTokenId])
+  @@map("push_deliveries")
+}
+
+// =============================================================================================
+// 5. Reliability and deletion support
+// =============================================================================================
+
+enum IdempotencyState {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+
+  @@map("idempotency_state")
+}
+
+model IdempotencyRequest {
+  id              String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId         String           @map("owner_id") @db.Uuid
+  requestKey      String           @map("request_key")
+  operation       String
+  payloadHash     String           @map("payload_hash")
+  state           IdempotencyState @default(IN_PROGRESS)
+  resultReference String?          @map("result_reference")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt       DateTime         @map("expires_at") @db.Timestamptz(3)
+
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ownerId, operation, requestKey])
+  @@index([expiresAt])
+  @@map("idempotency_requests")
+}
+
+/// Append-only. object_id is a historical identifier, not a live FK. No health text.
+/// The actor is set to NULL when the account is erased; nothing else may change.
+model AuditEvent {
+  id             String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  actorOwnerId   String?  @map("actor_owner_id") @db.Uuid
+  action         String
+  objectType     String   @map("object_type")
+  objectId       String   @map("object_id") @db.Uuid
+  occurredAt     DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  changeMetadata Json     @default("{}") @map("change_metadata")
+
+  actor Owner? @relation(fields: [actorOwnerId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@index([actorOwnerId, occurredAt])
+  @@map("audit_events")
+}
+
+enum OutboxState {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+
+  @@map("outbox_state")
+}
+
+/// Written in the same transaction as the mutation it describes. Consumers are idempotent.
+model OutboxEvent {
+  id               String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId          String      @map("owner_id") @db.Uuid
+  eventType        String      @map("event_type")
+  aggregateType    String      @map("aggregate_type")
+  aggregateId      String      @map("aggregate_id") @db.Uuid
+  aggregateVersion Int         @map("aggregate_version")
+  payload          Json        @default("{}")
+  state            OutboxState @default(PENDING)
+  attemptCount     Int         @default(0) @map("attempt_count")
+  nextAttemptAt    DateTime?   @map("next_attempt_at") @db.Timestamptz(3)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  processedAt      DateTime?   @map("processed_at") @db.Timestamptz(3)
+
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([state, nextAttemptAt])
+  @@index([ownerId])
+  @@map("outbox_events")
+}
+
+enum DeletionJobState {
+  REQUESTED
+  RUNNING
+  FAILED
+  COMPLETED
+
+  @@map("deletion_job_state")
+}
+
+/// FN-02. Retention and completion target are a release gate; this table only tracks steps.
+model DeletionJob {
+  id             String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ownerId        String?          @map("owner_id") @db.Uuid
+  state          DeletionJobState @default(REQUESTED)
+  completedSteps String[]         @default([]) @map("completed_steps")
+  attemptCount   Int              @default(0) @map("attempt_count")
+  requestedAt    DateTime         @default(now()) @map("requested_at") @db.Timestamptz(3)
+  completedAt    DateTime?        @map("completed_at") @db.Timestamptz(3)
+  lastErrorCode  String?          @map("last_error_code")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner Owner? @relation(fields: [ownerId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+
+  @@unique([ownerId], map: "deletion_jobs_one_open_per_owner_key", where: raw("state <> 'COMPLETED'"))
+  @@map("deletion_jobs")
 }

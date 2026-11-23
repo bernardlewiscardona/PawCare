@@ -1,10 +1,31 @@
 # PawCare — ERD and Application Flowcharts
 
-9 November 2026 · Proposed logical design · Source: Notion "PawCare_ERD_and_Flows"
+9 November 2026 · Logical design, implemented 23 November 2026 (see Implementation status) · Source: Notion "PawCare_ERD_and_Flows"
 
 > Review notes, gaps and spec conflicts: see `docs/design/erd-review.md`. Where this design and the spec disagree, the spec wins until the decision is logged in `docs/decisions.md`.
 
-This is a proposed database design derived from the tickets, not an implemented schema. The SETUP-01 stack was only proposed; this model is framework-independent. Authentication is a prerequisite and its credential/session schema is intentionally outside the detailed diagrams.
+This logical design was derived from the tickets. It is implemented as the baseline migration in SETUP-01 (`apps/api/prisma/schema.prisma` and `apps/api/prisma/migrations/`). See **Implementation status** below for how the implemented schema differs from the original Notion page. Authentication is a prerequisite and its credential/session schema is intentionally outside the detailed diagrams.
+
+## Implementation status (23 November 2026)
+
+The diagrams below were updated to match the implemented schema and the decisions in `docs/decisions.md`. Where the implemented schema goes further than a diagram, `schema.prisma` and the migration SQL are authoritative.
+
+| Topic | Original design | Implemented |
+| --- | --- | --- |
+| IDs (D-ERD-4) | Sequential `bigInt` | UUIDv7 for every ID, generated in the database by `uuidv7()` |
+| Same-owner integrity | Composite FKs "where practical" | Every owner table has `owner_id`; every FK between owner tables includes it; no cascades |
+| Care subtypes | "constraints/triggers or equivalent" | Subtypes carry `owner_id`, `pet_id` and a constant `kind`, and reference `CARE_RECORDS(owner_id, pet_id, id, kind)`; a deferred trigger requires the subtype by commit |
+| Vaccine fulfillment (D-ERD-3) | Many due items per administration | One administration fulfills at most one due item (unique FK) |
+| Prescription zone (D-ERD-1) | Fixed per-prescription `time_zone` | `follows_owner_zone` (default true); `time_zone` holds the effective zone |
+| Attachments (review item 5) | Row created after a clean scan | Row created when the upload starts; `FILE_ASSETS.scan_status` covers PENDING_UPLOAD, SCANNING, CLEAN, REJECTED, FAILED; `purpose` limits profile images to JPEG/PNG |
+| Dose duplicates (review item 6) | UNIQUE per schedule version only | Also at most one non-invalidated occurrence per prescription and instant |
+| Stock idempotency (review item 7) | Global `request_id` | `owner_id` + UNIQUE(owner_id, request_key) |
+| Stock ledger | Immutable, balance is a cache | Triggers block ledger updates and check each batch balance equals its entries at commit |
+| Appointment outcome (review item 10) | `outcome_recorded_at` only | Adds `outcome_actor_id` |
+| Device tokens | Token globally unique | Unique among enabled rows; a new owner gets a new row, so deliveries can't cross owners |
+| Audit events | — | Append-only (trigger); the actor becomes NULL on account erasure |
+
+Rules that stay in the API: attachment limit of five per record, discrete-unit whole quantities, medical events link only Completed appointments, due date not before administration, fixed-daily schedules need at least one time, and every lifecycle/eligibility rule in the flows below.
 
 Only pet owners use the application. Provider names and contact details are owner-entered text. There are no clinic users, appointment slots, booking approvals, or clinic notifications. The application requires connectivity in v1.
 
@@ -32,17 +53,17 @@ erDiagram
     FILE_ASSETS o|--o{ OWNERS : avatar
     APPOINTMENTS o|--o{ MEDICAL_EVENTS : optionally_links
     OWNERS {
-        bigInt id PK
+        uuid id PK
         string auth_subject UK
         string display_name
         string phone "nullable"
         string time_zone
-        bigInt avatar_asset_id FK "nullable"
+        uuid avatar_asset_id FK "nullable"
         string account_status
     }
     PETS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string name
         string species
         string species_other "nullable"
@@ -53,13 +74,13 @@ erDiagram
         decimal current_weight_kg "nullable"
         date weight_measured_on "nullable"
         string microchip "nullable"
-        bigInt photo_asset_id FK "nullable"
+        uuid photo_asset_id FK "nullable"
         datetime archived_at "nullable"
     }
     CARE_RECORDS {
-        bigInt id PK
-        bigInt owner_id FK
-        bigInt pet_id FK
+        uuid id PK
+        uuid owner_id FK
+        uuid pet_id FK
         string kind "MEDICAL VACCINE PRESCRIPTION APPOINTMENT"
         date occurrence_date
         string status "ACTIVE or VOIDED for voidable kinds"
@@ -69,30 +90,33 @@ erDiagram
         int version
     }
     MEDICAL_EVENTS {
-        bigInt record_id PK,FK
-        bigInt appointment_id FK "nullable"
+        uuid record_id PK,FK
+        uuid appointment_id FK "nullable"
         string event_type
         string title
         string notes "nullable"
         string provider_name "nullable"
     }
     FILE_ASSETS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string object_key UK
         string original_name
         string mime_type
         bigint size_bytes
-        string scan_status
+        string purpose "ATTACHMENT PET_PHOTO OWNER_AVATAR"
+        string scan_status "PENDING_UPLOAD SCANNING CLEAN REJECTED FAILED"
         datetime removed_at "nullable"
     }
     ATTACHMENTS {
-        bigInt id PK
-        bigInt record_id FK
-        bigInt file_asset_id FK,UK
+        uuid id PK
+        uuid owner_id FK
+        uuid record_id FK
+        string record_kind "MEDICAL VACCINE PRESCRIPTION"
+        uuid file_asset_id FK,UK
     }
     APPOINTMENTS {
-        bigInt record_id PK,FK
+        uuid record_id PK,FK
     }
 ```
 
@@ -119,62 +143,63 @@ erDiagram
     DOSE_OCCURRENCES ||--o| DOSE_LOGS : current_result
     PRESCRIPTIONS }o--o| INVENTORY_ITEMS : optionally_links
     CARE_RECORDS {
-        bigInt id PK
-        bigInt pet_id FK
+        uuid id PK
+        uuid pet_id FK
         string kind
         date occurrence_date
         string status
     }
     VACCINATIONS {
-        bigInt record_id PK,FK
+        uuid record_id PK,FK
         string vaccine_name
         date administered_on
         string provider_name "nullable"
         string batch_label "nullable"
     }
     VACCINE_DUE_ITEMS {
-        bigInt id PK
-        bigInt vaccination_id FK,UK
+        uuid id PK
+        uuid vaccination_id FK,UK
         date due_on
-        bigInt fulfilled_by_vaccination_id FK "nullable"
+        uuid fulfilled_by_vaccination_id FK,UK "nullable"
         int schedule_version
     }
     PRESCRIPTIONS {
-        bigInt record_id PK,FK
+        uuid record_id PK,FK
         string medication_name
         string dose_instructions
         string prescriber_name "nullable"
         date starts_on
         date ends_on "nullable"
         string schedule_mode "FIXED_DAILY AS_NEEDED MANUAL"
-        string time_zone
-        bigInt inventory_item_id FK "nullable"
+        string time_zone "effective zone"
+        boolean follows_owner_zone "default true"
+        uuid inventory_item_id FK "nullable"
         datetime stopped_at "nullable"
         int schedule_version
     }
     PRESCRIPTION_TIMES {
-        bigInt id PK
-        bigInt prescription_id FK
+        uuid id PK
+        uuid prescription_id FK
         time local_time
     }
     DOSE_OCCURRENCES {
-        bigInt id PK
-        bigInt prescription_id FK
+        uuid id PK
+        uuid prescription_id FK
         datetime scheduled_at_utc
         int schedule_version
         datetime invalidated_at "nullable"
     }
     DOSE_LOGS {
-        bigInt id PK
-        bigInt dose_occurrence_id FK,UK
+        uuid id PK
+        uuid dose_occurrence_id FK,UK
         string status "TAKEN SKIPPED"
         datetime acted_at
-        bigInt actor_owner_id FK
+        uuid actor_owner_id FK
         string note "nullable"
         int version
     }
     APPOINTMENTS {
-        bigInt record_id PK,FK
+        uuid record_id PK,FK
         string title
         string provider_name
         string provider_contact "nullable"
@@ -186,20 +211,21 @@ erDiagram
         string status "PLANNED COMPLETED CANCELED MISSED"
         string cancel_reason "nullable"
         datetime outcome_recorded_at "nullable"
+        uuid outcome_actor_id FK "nullable"
         int schedule_version
     }
     INVENTORY_ITEMS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
     }
 ```
 
 ### Care constraints
 
-- A due item is created only when a vaccine next date is supplied; due date cannot precede administration. One next due item per administration; the fulfillment link must point to a different, non-voided vaccination for the same owner and pet. Do not infer fulfillment from matching names. This model permits one administration to fulfill multiple due items only through explicit selections; confirm a stricter one-to-one rule if needed.
-- Voiding a fulfilling vaccination reopens previously fulfilled items unless another valid fulfillment was explicitly recorded. Voiding the source vaccination suppresses its pending due alerts. Due/overdue/fulfilled are derived from date, fulfillment, and source validity rather than independent editable flags.
-- Prescription local times are unique within a prescription. AS_NEEDED and MANUAL have no generated daily dose occurrences. Fixed-daily schedules require at least one local time. End date is inclusive in the prescription's zone; starts_on <= ends_on.
-- UNIQUE(prescription_id, schedule_version, scheduled_at_utc) prevents duplicate dose generation. A dose log has at most one current result; corrections are captured in AUDIT_EVENTS. Stopping or voiding a prescription invalidates unlogged future occurrences and future reminders, while preserving history.
+- A due item is created only when a vaccine next date is supplied; due date cannot precede administration. One next due item per administration; the fulfillment link must point to a different, non-voided vaccination for the same owner and pet. Do not infer fulfillment from matching names. One administration fulfills at most one due item (D-ERD-3), always through an explicit selection.
+- Voiding a fulfilling vaccination reopens the item it fulfilled (clear the fulfillment link in the same transaction). Voiding the source vaccination suppresses its pending due alerts. Due/overdue/fulfilled are derived from date, fulfillment, and source validity rather than independent editable flags.
+- Prescription local times are unique within a prescription. AS_NEEDED and MANUAL have no generated daily dose occurrences. Fixed-daily schedules require at least one local time. End date is inclusive in the prescription's zone; starts_on <= ends_on. The zone follows the owner zone unless follows_owner_zone is false (D-ERD-1); on a confirmed owner-zone change, bump schedule_version and regenerate future occurrences.
+- UNIQUE(prescription_id, schedule_version, scheduled_at_utc) prevents duplicate dose generation, and at most one non-invalidated occurrence may exist per prescription and instant, so regeneration skips instants already logged under an older version. A dose log has at most one current result; corrections are captured in AUDIT_EVENTS. Stopping or voiding a prescription invalidates unlogged future occurrences and future reminders, while preserving history.
 - A dose status is not stored as Overdue. Compute overdue from scheduled instant, current log, prescription lifecycle, and invalidation. Dose Taken never deducts inventory.
 - Appointment end must follow start by 1–480 minutes. New appointment starts are future instants. Edits to a Planned past visit may keep its time when only descriptive fields change; moving the visit requires a new future instant. Pet association is immutable after creation.
 - Needs Update is a view condition: status=PLANNED and start <= server now. Terminal statuses are read-only in v1. Same-pet overlaps cause a warning requiring explicit confirmation, not a slot reservation constraint.
@@ -222,15 +248,15 @@ erDiagram
     INVENTORY_ITEMS ||--o{ INVENTORY_ALERTS : triggers
     STOCK_BATCHES o|--o{ INVENTORY_ALERTS : expiry_subject
     OWNERS {
-        bigInt id PK
+        uuid id PK
     }
     PETS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
     }
     INVENTORY_ITEMS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string name
         string category
         string unit
@@ -240,37 +266,38 @@ erDiagram
         int version
     }
     INVENTORY_PETS {
-        bigInt item_id PK,FK
-        bigInt pet_id PK,FK
+        uuid item_id PK,FK
+        uuid pet_id PK,FK
     }
     STOCK_BATCHES {
-        bigInt id PK
-        bigInt item_id FK
+        uuid id PK
+        uuid item_id FK
         string batch_label "nullable"
         date expires_on "nullable"
         decimal remaining_quantity
     }
     STOCK_TRANSACTIONS {
-        bigInt id PK
-        bigInt item_id FK
+        uuid id PK
+        uuid owner_id FK
+        uuid item_id FK
         string type "OPENING RESTOCK USE DISPOSE ADJUST REVERSE"
         string reason "nullable"
-        bigInt pet_id FK "nullable"
-        bigInt prescription_id FK "nullable"
-        bigInt reverses_transaction_id FK,UK "nullable"
-        bigInt request_id UK
+        uuid pet_id FK "nullable"
+        uuid prescription_id FK "nullable"
+        uuid reverses_transaction_id FK,UK "nullable"
+        string request_key "UK with owner_id"
         datetime recorded_at
     }
     STOCK_ENTRIES {
-        bigInt id PK
-        bigInt transaction_id FK
-        bigInt batch_id FK
+        uuid id PK
+        uuid transaction_id FK
+        uuid batch_id FK
         decimal signed_quantity
     }
     INVENTORY_ALERTS {
-        bigInt id PK
-        bigInt item_id FK
-        bigInt batch_id FK "nullable for LOW_STOCK"
+        uuid id PK
+        uuid item_id FK
+        uuid batch_id FK "nullable for LOW_STOCK"
         string type "LOW_STOCK EXPIRING EXPIRED"
         int episode_number
         datetime opened_at
@@ -309,30 +336,30 @@ erDiagram
     REMINDER_OCCURRENCES ||--o{ PUSH_DELIVERIES : dispatches
     DEVICE_TOKENS ||--o{ PUSH_DELIVERIES : receives
     OWNERS {
-        bigInt id PK
+        uuid id PK
     }
     PETS {
-        bigInt id PK
+        uuid id PK
     }
     REMINDER_PREFERENCES {
-        bigInt owner_id PK,FK
+        uuid owner_id PK,FK
         boolean push_enabled
         int appointment_lead_minutes
         int vaccine_lead_days
         time date_only_delivery_time
     }
     DEVICE_TOKENS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string token UK
         string platform
         boolean enabled
         datetime last_seen_at
     }
     CUSTOM_REMINDERS {
-        bigInt id PK
-        bigInt owner_id FK
-        bigInt pet_id FK
+        uuid id PK
+        uuid owner_id FK
+        uuid pet_id FK
         string title
         datetime starts_at_local
         string time_zone
@@ -341,33 +368,34 @@ erDiagram
         boolean enabled
     }
     REMINDER_SCHEDULES {
-        bigInt id PK
-        bigInt owner_id FK
-        bigInt care_record_id FK "nullable"
-        bigInt custom_reminder_id FK "nullable"
-        bigInt inventory_alert_id FK "nullable"
+        uuid id PK
+        uuid owner_id FK
+        uuid care_record_id FK "nullable"
+        uuid custom_reminder_id FK "nullable"
+        uuid inventory_alert_id FK "nullable"
         int schedule_version
         boolean enabled
         boolean suppressed_by_archive
     }
     REMINDER_OCCURRENCES {
-        bigInt id PK
-        bigInt schedule_id FK
+        uuid id PK
+        uuid owner_id FK
+        uuid schedule_id FK
         int schedule_version
         string occurrence_key
-        bigInt dose_occurrence_id FK "nullable"
+        uuid dose_occurrence_id FK "nullable"
         datetime trigger_at_utc
         string state "PENDING AVAILABLE CANCELED SUPPRESSED"
         datetime available_at "nullable"
         datetime read_at "nullable"
         datetime dismissed_at "nullable"
         datetime custom_done_at "nullable"
-        bigInt snoozed_from_id FK,UK "nullable"
+        uuid snoozed_from_id FK,UK "nullable"
     }
     PUSH_DELIVERIES {
-        bigInt id PK
-        bigInt reminder_occurrence_id FK
-        bigInt device_token_id FK
+        uuid id PK
+        uuid reminder_occurrence_id FK
+        uuid device_token_id FK
         string state "PENDING ACCEPTED RETRY FAILED SUPPRESSED"
         int attempt_count
         datetime next_attempt_at "nullable"
@@ -375,13 +403,13 @@ erDiagram
         string last_error_code "nullable"
     }
     CARE_RECORDS {
-        bigInt id PK
+        uuid id PK
     }
     DOSE_OCCURRENCES {
-        bigInt id PK
+        uuid id PK
     }
     INVENTORY_ALERTS {
-        bigInt id PK
+        uuid id PK
     }
 ```
 
@@ -408,12 +436,12 @@ erDiagram
     OWNERS o|--o{ DELETION_JOBS : requests
     OWNERS ||--o{ OUTBOX_EVENTS : produces
     OWNERS {
-        bigInt id PK
+        uuid id PK
         string account_status
     }
     IDEMPOTENCY_REQUESTS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string request_key
         string operation
         string payload_hash
@@ -422,8 +450,8 @@ erDiagram
         datetime expires_at
     }
     AUDIT_EVENTS {
-        bigInt id PK
-        bigInt actor_owner_id FK "nullable after erasure"
+        uuid id PK
+        uuid actor_owner_id FK "nullable after erasure"
         string action
         string object_type
         uuid object_id
@@ -431,8 +459,8 @@ erDiagram
         string change_metadata "no health text"
     }
     OUTBOX_EVENTS {
-        bigInt id PK
-        bigInt owner_id FK
+        uuid id PK
+        uuid owner_id FK
         string event_type
         uuid aggregate_id
         int aggregate_version
@@ -441,8 +469,8 @@ erDiagram
         datetime next_attempt_at "nullable"
     }
     DELETION_JOBS {
-        bigInt id PK
-        bigInt owner_id FK "nullable after erasure"
+        uuid id PK
+        uuid owner_id FK "nullable after erasure"
         string state
         string completed_steps
         int attempt_count
@@ -662,10 +690,10 @@ Disable writes before cleanup begins. Deletion must cover files, device tokens, 
 
 ## Implementation decisions and integrity checklist
 
-1. Use same-owner composite FKs where practical: e.g. CARE_RECORDS(owner_id, pet_id) references PETS(owner_id, id). Apply equivalent constraints to file links, vaccine fulfillment, prescription inventory links, stock references, and reminder sources. A UUID alone is never authorization.
+1. Use same-owner composite FKs (implemented for every link between owner tables): e.g. CARE_RECORDS(owner_id, pet_id) references PETS(owner_id, id). Apply equivalent constraints to file links, vaccine fulfillment, prescription inventory links, stock references, and reminder sources. A UUID alone is never authorization.
 2. Persist source changes plus outbox rows atomically. Consumers re-check current version/lifecycle and deduplicate their work. Attachments and stock are not external side effects of a push send.
 3. Index owner/pet/date for timeline and appointment views, schedule state/trigger for reminders, item/expiry for inventory, and outbox state/next_attempt for workers. Add uniqueness constraints described per domain; do not make pet name or microchip globally unique.
 4. Avoid unbounded future daily occurrences: generate through a rolling window, preserving stable schedule-version keys. Window length is an engineering decision; regeneration must not erase logs or duplicate alerts.
 5. Keep physical ledger rows and care history for archive/void operations. Permanent account deletion uses an explicit FK-safe cleanup workflow, not everyday soft-delete flags alone.
 6. Restore must not silently reactivate pet reminders. Late delivery and midnight expiry checks must use server clock plus the proper stored zone. Do not convert date-only care facts to UTC dates.
-7. The diagrams list the core fields and links needed to explain the backlog. They are not migration-ready DDL: finalize enum storage, lengths, numeric precision, auth schema, and constraints during technical refinement. No new clinical automation or clinic workflow is implied.
+7. The diagrams list the core fields and links needed to explain the backlog. They are not DDL: enum storage, lengths, numeric precision and constraints are finalized in `apps/api/prisma/schema.prisma` and the migration SQL. The auth schema is still to come. No new clinical automation or clinic workflow is implied.

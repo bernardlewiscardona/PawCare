@@ -13,6 +13,9 @@ The product spec is the source of truth. Read it before designing or coding anyt
 
 ## Data model rules (from the ERD)
 
+The whole ERD is implemented: `apps/api/prisma/schema.prisma` plus the baseline migration (see "Implementation status" in `docs/design/erd-and-flows.md`). Feature tickets build on it and add migrations only for changes.
+
+- IDs are UUIDv7, generated in the database by `uuidv7()`. Every owner table has `owner_id`.
 - `CARE_RECORDS` is the shared parent for MEDICAL / VACCINE / PRESCRIPTION / APPOINTMENT; exactly one matching subtype row, written in the same transaction. Appointments are never voided.
 - Same-owner composite FKs everywhere (e.g. `CARE_RECORDS(owner_id, pet_id) → PETS(owner_id, id)`); an ID alone is never authorization.
 - Derived, not stored: health timeline, Care Due, overdue status, Needs Update, physical/usable stock.
@@ -76,7 +79,7 @@ Built in SETUP-01. Run everything from the repo root with pnpm; see `README.md` 
   - HTTP setup lives in `src/app.setup.ts` (`configureApp`), shared by `main.ts` and the e2e tests. That covers helmet, URI versioning (feature routes under `/v1`), a whitelisting `ValidationPipe`, the global error filter, and shutdown hooks.
   - Errors: always `{ statusCode, code, message, details }`. Add codes to `src/common/errors/error-codes.ts` and throw `AppException`. Never rename an existing code.
   - Health: `/health` (liveness) and `/health/ready` (database check, 503 when down), both version-neutral. They never return config.
-  - Database: Prisma 7 with the `prisma-client` generator (ESM output in `src/generated/prisma`, git-ignored) and `@prisma/adapter-pg`. Inject `PrismaService`. Migrations: `pnpm --filter api db:migrate --name <change>`. Hand-write the CHECK constraints, partial unique indexes and composite same-owner FKs from the ERD into the migration SQL.
+  - Database: Prisma 7 with the `prisma-client` generator (ESM output in `src/generated/prisma`, git-ignored) and `@prisma/adapter-pg`. Inject `PrismaService`. Migrations: `pnpm --filter api db:migrate --name <change>`. Declare composite same-owner FKs and partial unique indexes (preview feature `partialIndexes`) in `schema.prisma`. Hand-write CHECK constraints and triggers into the migration SQL, keep the existing "Hand-written" sections, and cover new rules in `test/schema-*.e2e-spec.ts`. CI fails if `schema.prisma` and the migrations drift.
   - Tests: unit specs sit next to the code in `src/**/*.spec.ts`; e2e specs in `test/*.e2e-spec.ts` run against a real PostgreSQL (`pnpm test:e2e`), using `configureApp`.
   - Docker: `compose.yaml` runs PostgreSQL and, optionally, the API dev server (`apps/api/Dockerfile`, `dev` stage, Node 22). It bind-mounts the repo, keeps `node_modules` in container volumes, and uses a fixed pnpm store path plus polling file watchers. When the host's Node isn't 22/24, run API commands with `docker compose exec api pnpm …`. Mobile commands still need host Node.
 - **Mobile — `apps/mobile`:** Expo SDK 58, React Native 0.88, Expo Router (routes in `src/app/`; other code in `src/lib`, `src/components`; `@/` maps to `src/`). Add packages with `pnpm --filter mobile exec expo install <pkg>`, never `pnpm add`. Lint with `expo lint` (ESLint); unit-test plain logic with Vitest (`src/**/*.test.ts`). Read `apps/mobile/AGENTS.md`: Expo APIs change every SDK, so check the versioned docs rather than relying on memory.
