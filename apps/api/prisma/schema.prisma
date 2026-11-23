@@ -33,6 +33,14 @@ enum AccountStatus {
   @@map("account_status")
 }
 
+/// Display unit for pet body weight (decision 23 Nov 2026). Weights are always stored in kg.
+enum WeightUnit {
+  KG
+  LB
+
+  @@map("weight_unit")
+}
+
 model Owner {
   id                 String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
   authSubject        String        @unique @map("auth_subject")
@@ -43,6 +51,7 @@ model Owner {
   accountStatus      AccountStatus @default(ACTIVE) @map("account_status")
   /// Set on the owner's first profile save (PF-01); NULL means profile setup is still required.
   profileCompletedAt DateTime?     @map("profile_completed_at") @db.Timestamptz(3)
+  weightUnit         WeightUnit    @default(KG) @map("weight_unit")
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   version            Int           @default(1)

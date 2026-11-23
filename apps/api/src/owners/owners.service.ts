@@ -13,7 +13,7 @@ import {
   type RuleError,
 } from './profile-rules.js';
 
-const PROFILE_FIELDS = ['displayName', 'phone', 'timeZone'] as const;
+const PROFILE_FIELDS = ['displayName', 'phone', 'timeZone', 'weightUnit'] as const;
 type ProfileField = (typeof PROFILE_FIELDS)[number];
 type ProfileChanges = Partial<Pick<Owner, ProfileField>>;
 
@@ -110,6 +110,7 @@ function normalizeChanges(dto: UpdateOwnerProfileDto): ProfileChanges {
   if (dto.displayName !== undefined) apply('displayName', normalizeDisplayName(dto.displayName));
   if (dto.phone !== undefined) apply('phone', normalizePhone(dto.phone));
   if (dto.timeZone !== undefined) apply('timeZone', checkTimeZone(dto.timeZone));
+  if (dto.weightUnit !== undefined) apply('weightUnit', dto.weightUnit);
   if (Object.keys(errors).length > 0) throw validationFailed(errors);
   return changes;
 }

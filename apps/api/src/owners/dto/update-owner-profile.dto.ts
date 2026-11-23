@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
 
 /** Largest value of a PostgreSQL integer column, such as owners.version. */
 const MAX_INT4 = 2_147_483_647;
@@ -37,4 +37,9 @@ export class UpdateOwnerProfileDto {
   @IsOptional()
   @IsString()
   phone?: string | null;
+
+  @ApiPropertyOptional({ enum: ['KG', 'LB'], description: 'Pet weight display unit' })
+  @IfPresent()
+  @IsIn(['KG', 'LB'])
+  weightUnit?: 'KG' | 'LB';
 }

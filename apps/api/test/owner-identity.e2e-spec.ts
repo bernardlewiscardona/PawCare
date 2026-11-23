@@ -65,6 +65,7 @@ describe('Owner identity (e2e)', () => {
         timeZone: 'UTC',
         version: 1,
         profileSetupRequired: true,
+        weightUnit: 'KG',
       });
       const stored = await prisma.owner.findUniqueOrThrow({ where: { id: res.body.id } });
       expect(stored.authSubject).toBe(`dev:${name}`);

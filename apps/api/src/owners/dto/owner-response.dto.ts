@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { Owner } from '../../generated/prisma/client.js';
+import type { Owner, WeightUnit } from '../../generated/prisma/client.js';
 
 /** The current owner's profile. Never exposes auth_subject or account status. */
 export class OwnerResponseDto {
@@ -24,6 +24,9 @@ export class OwnerResponseDto {
   })
   profileSetupRequired!: boolean;
 
+  @ApiProperty({ enum: ['KG', 'LB'], description: 'Unit the owner sees pet weights in' })
+  weightUnit!: WeightUnit;
+
   static from(owner: Owner): OwnerResponseDto {
     return {
       id: owner.id,
@@ -32,6 +35,7 @@ export class OwnerResponseDto {
       timeZone: owner.timeZone,
       version: owner.version,
       profileSetupRequired: owner.profileCompletedAt === null,
+      weightUnit: owner.weightUnit,
     };
   }
 }

@@ -72,6 +72,7 @@ describe('Owner profile (e2e)', () => {
       timeZone: 'Asia/Manila',
       version: 2,
       profileSetupRequired: false,
+      weightUnit: 'KG',
     };
     expect(res.body).toEqual(expected);
     expect((await get(owner).expect(200)).body).toEqual(expected);
@@ -92,6 +93,25 @@ describe('Owner profile (e2e)', () => {
     expect(added.body).toMatchObject({ phone: '+639171234567', version: 3 });
     const removed = await patch(owner, { version: 3, phone: null }).expect(200);
     expect(removed.body).toMatchObject({ phone: null, version: 4 });
+  });
+
+  it('saves the weight display unit as a single-field change', async () => {
+    const { owner, id } = await setUp('unit');
+    const res = await patch(owner, { version: 2, weightUnit: 'LB' }).expect(200);
+    expect(res.body).toMatchObject({ weightUnit: 'LB', version: 3 });
+    const latest = await prisma.outboxEvent.findFirst({
+      where: { ownerId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(latest?.payload).toMatchObject({ changedFields: ['weightUnit'] });
+  });
+
+  it('rejects an unknown weight unit', async () => {
+    const { owner } = await setUp('bad-unit');
+    const res = await patch(owner, { version: 2, weightUnit: 'STONE' }).expect(400);
+    expect(res.body.details.fields).toEqual({
+      weightUnit: ['weightUnit must be one of the following values: KG, LB'],
+    });
   });
 
   it('reports every invalid field at once', async () => {
