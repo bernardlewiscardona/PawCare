@@ -64,6 +64,15 @@ Sign-in isn't built yet; Google sign-in comes later (AUTH-01). Until then, set `
 curl -H 'X-Dev-Owner: bea' http://localhost:3000/v1/me
 ```
 
+`GET /v1/me` includes `profileSetupRequired`: `true` until the owner's first profile save. Save the profile with the `version` you last read (the first save needs `displayName` and `timeZone`):
+
+```bash
+curl -X PATCH -H 'X-Dev-Owner: bea' -H 'Content-Type: application/json' \
+  -d '{"version":1,"displayName":"Bea","timeZone":"Asia/Manila"}' http://localhost:3000/v1/me
+```
+
+A stale `version` returns `409 CONFLICT` with the latest profile in `details.current`.
+
 In http://localhost:3000/docs, click **Authorize** and enter a name under `dev-owner`. The mobile app sends `EXPO_PUBLIC_DEV_OWNER` from `apps/mobile/.env`. Use two names to check that one owner can't see the other's data.
 
 ### Or run the API in Docker

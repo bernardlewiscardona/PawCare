@@ -30,7 +30,7 @@ Origin: Notion "PawCare_Backlog_Specifications" v1.1 (4 Nov 2026). If the spec a
 
 1. Load the story (`/story <ID>`) and its dependencies. Check `docs/decisions.md` for anything blocking it.
 2. Map every **Given/When/Then** to at least one automated test before implementing; also cover the story's "Edge Cases & Failure Points".
-3. Implement API + data model + mobile UI states (loading / empty / error / retry).
+3. Implement the API + data model. Our stories are **backend only**: app screens and their loading / empty / error / retry states belong to the app developer, tracked as a linked `<ID>-APP` subtask in `docs/backlog.csv`. Swagger (`/docs`) is the contract they build against.
 4. Verify against the 8 shared requirements and the Definition of Done (`/spec-check <ID>`).
 5. Update the story's `Status` in `docs/backlog.csv`.
 

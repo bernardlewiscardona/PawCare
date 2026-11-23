@@ -146,7 +146,7 @@ describe('Owner profile (e2e)', () => {
       patch(owner, { version: 2, displayName: 'Phone A' }),
       patch(owner, { version: 2, displayName: 'Phone B' }),
     ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.map((r) => r.status).sort((x, y) => x - y)).toEqual([200, 409]);
   });
 
   it('treats a save with nothing to change as a no-op', async () => {

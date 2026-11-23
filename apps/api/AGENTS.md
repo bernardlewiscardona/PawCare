@@ -30,3 +30,9 @@ Nest's packages are ESM only, and this project is ESM too: relative imports end 
 - Look up owner resources with `id` **and** `ownerId` together, never by `id` alone. Not found and not yours both throw `AppException(ErrorCode.NOT_FOUND, 404, 'Not found')` with no details.
 - Every endpoint that takes a resource ID gets e2e tests showing another owner receives that identical 404, including nested resources.
 - Never log the `X-Dev-Owner` value or an `auth_subject`.
+
+## PawCare: validation errors and edits (PF-01)
+
+- `VALIDATION_FAILED` details are `{ errors: string[], fields: { "<field>": string[] } }`. The global `ValidationPipe` produces them; for domain checks throw `validationFailed(fields)` from `src/common/errors/validation.ts` so the app can show each message next to its field.
+- Editable resources take the `version` the client last read. Update where `id`, `ownerId` and `version` all match and increment `version`; if nothing matched, throw `CONFLICT` (409) with `details: { current: <response DTO> }`. Never overwrite silently.
+- Write the mutation, its `audit_events` row and its `outbox_events` row in one `prisma.$transaction`. Audit metadata and outbox payloads carry field names only, never names, phone numbers, health text or other values.
