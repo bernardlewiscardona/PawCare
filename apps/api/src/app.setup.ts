@@ -1,6 +1,7 @@
 import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/errors/http-exception.filter.js';
+import { fieldErrorsFrom, validationFailed } from './common/errors/validation.js';
 
 /**
  * Global HTTP setup shared by main.ts and the e2e tests, so tests exercise exactly what ships.
@@ -14,6 +15,7 @@ export function configureApp(app: INestApplication): INestApplication {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (errors) => validationFailed(fieldErrorsFrom(errors)),
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
