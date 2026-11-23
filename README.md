@@ -182,7 +182,9 @@ The first build takes about 40 minutes. Later builds take about 6 minutes after 
 | ⚠️ `pnpm db:reset:DESTRUCTIVE` | **Drops all local data**, then re-applies the migrations. Local development only. |
 | ⚠️ `docker compose down -v` | **Deletes the local database volume.** |
 
-Business tables are added by their feature tickets (see `docs/design/erd-and-flows.md`), so the schema starts out empty. The constraints Prisma can't express — CHECKs, partial unique indexes and composite same-owner foreign keys — are hand-written into each migration's SQL.
+The schema implements the whole logical design in `docs/design/erd-and-flows.md`, with the fixes from `docs/design/erd-review.md`. IDs are UUIDv7, generated in the database. Every owner resource carries `owner_id`, and foreign keys between owner resources are composites that include it, so a row can't point at another owner's data. Nothing cascades.
+
+The rules Prisma can't express are hand-written into the migration SQL, in sections marked "Hand-written": CHECK constraints (including text lengths), the `uuidv7()` function, the deferred trigger that requires each care record's subtype row, the append-only stock ledger and audit log, and the check that a batch balance equals its ledger. Partial unique indexes are declared in `schema.prisma` (preview feature `partialIndexes`). The specs in `apps/api/test/schema-*.e2e-spec.ts` test these rules against PostgreSQL. When you change the schema, keep the hand-written sections, and add the new rules to the new migration's SQL.
 
 ## 7. Ports and overrides
 

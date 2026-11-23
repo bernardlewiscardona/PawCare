@@ -37,7 +37,7 @@ Scope confirmed by the product owner: pet owners only. Appointment records are a
 
 1. Authorize every API request against the current owner. Never rely on client filtering. Return a generic unavailable/not-found result for inaccessible objects; expose no names, attachments, counts, or notification details.
 2. Use server validation and field-level mobile errors. Preserve entered values after validation/network errors; show success only after server acknowledgement. Disable duplicate submissions and support safe retry with request identifiers for creates and transactional actions.
-3. Use stable IDs, pagination for collections (default 20, maximum 100), deterministic sorting, and version-based conflict detection for edits. A stale update returns a conflict and a refresh/review action rather than overwriting newer data.
+3. Use stable, non-sequential IDs (UUIDv7, D-ERD-4), pagination for collections (default 20, maximum 100), deterministic sorting, and version-based conflict detection for edits. A stale update returns a conflict and a refresh/review action rather than overwriting newer data.
 4. Store event instants in UTC plus the relevant IANA time zone. Store date-only facts, such as birth dates and vaccine administration dates, as dates without UTC conversion. Use the explicitly entered appointment time zone for visit instants and owner time for owner-local reminders; display the zone where confusion is possible.
 5. Provide loading, empty, error, and retry states. Support screen readers, labeled controls, scalable text, and status information that does not depend on color alone. Validate critical journeys on supported iOS and Android versions agreed at refinement.
 6. Encrypt transport and stored sensitive data; exclude health details, tokens, and attachment URLs from diagnostic logs. Record actor, timestamp, action, and object ID for material mutations. Avoid storing health text in audit logs that could survive deletion.
@@ -63,6 +63,7 @@ Each epic is an **Issue Type: Epic**. Its completion requires all child acceptan
 
 ## Suggested delivery sequence
 
+0. **Project foundation:** SETUP-01, including the baseline database schema for every story (`docs/design/erd-and-flows.md`).
 1. **Foundation and diary:** Authentication prerequisite; FN-01; PF-01/PF-02/PF-03; MR-01/MR-02/MR-04; VC-01/VC-02; timeline medical/vaccine/prescription support in MR-03.
 2. **Care tracking and reminders:** RM-01/RM-02, VC-03/VC-04, RM-03/RM-04. Build a source-neutral reminder engine first; enable each source only when its underlying lifecycle is implemented.
 3. **Owner appointment diary:** AP-01–AP-05, then complete the appointment timeline adapter and reminder integration. No clinic participation, slot management, or provider communication is required.

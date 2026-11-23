@@ -2,6 +2,14 @@
 
 Reviewed 19 Nov 2026. Overall the design matches the spec closely: owner scoping, archive/void, the explicit vaccine fulfillment, inventory ledger, reminder versioning and dedup keys, and every product guardrail all line up. The items below are gaps or conflicts to settle in refinement. Each one names the ticket it affects.
 
+## Status (2026-11-23)
+
+The first migration (`apps/api/prisma/migrations/*_erd_schema`, branch `SETUP-01_Migrations`) applies these items:
+
+- **Resolved in the schema:** 1 (`follows_owner_zone`), 3 (unique fulfillment), 4 (UUIDv7), 5 (attachment row created at upload start; `scan_status` covers the upload states; `file_assets.created_at`), 6 (at most one non-invalidated dose per prescription and instant), 7 (`stock_transactions.owner_id` and UNIQUE(owner_id, request_key)), 10 (`appointments.outcome_actor_id`), 12 (same-owner, same-pet FK; the Completed-only rule stays in the API), 14 (partial unique indexes), 15 (`owner_id` on every reminder table).
+- **Left to the application:** 8 (the delayed marker is derived from `available_at - trigger_at_utc`), 11 (update `occurrence_date` when rescheduling), the Completed-only part of 12, and the flow fixes 9 and 16–18.
+- **Still open:** 2 (D-ERD-2) and 13 (no display unit for weight is stored).
+
 ## Conflicts with the spec (need a decision)
 
 1. **Medication reminders when the owner changes time zone (RM-01 vs VC-02).** RM-01 says that after a time-zone change, future *owner-local medication* occurrences are regenerated in the new zone. VC-02 and the ERD give each prescription its own `time_zone`, and the ERD says prescription times follow that zone. So with the ERD, a time-zone change would leave medication reminders where they are, which contradicts RM-01. Decide whether prescription zone follows owner zone (a flag like `follows_owner_zone`) or stays fixed. → `docs/decisions.md` D-ERD-1
