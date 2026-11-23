@@ -220,4 +220,71 @@ describe('Pets (e2e)', () => {
       expect(stored).not.toContain('985112345678901');
     });
   });
+  const list = (owner: string, query = '') =>
+    request(app.getHttpServer()).get(`/v1/pets${query}`).set('X-Dev-Owner', owner);
+  const read = (owner: string, id: string) =>
+    request(app.getHttpServer()).get(`/v1/pets/${id}`).set('X-Dev-Owner', owner);
+
+  describe('GET /v1/pets', () => {
+    it('pages through pets in the order they were added', async () => {
+      const owner = ownerName('pages');
+      const ids: string[] = [];
+      for (let i = 0; i < 25; i++) {
+        const res = await create(owner, { name: `Pet ${i}`, species: 'CAT' }).expect(201);
+        ids.push(res.body.id as string);
+      }
+      const first = await list(owner).expect(200);
+      expect(first.body.data).toHaveLength(20);
+      expect(first.body.nextCursor).toBe(ids[19]);
+      const second = await list(owner, `?cursor=${first.body.nextCursor}`).expect(200);
+      expect(second.body.data).toHaveLength(5);
+      expect(second.body.nextCursor).toBeNull();
+      const all = [...first.body.data, ...second.body.data].map((p: { id: string }) => p.id);
+      expect(all).toEqual(ids);
+      expect((await list(owner, '?limit=5').expect(200)).body.data).toHaveLength(5);
+    });
+
+    it.each([['?limit=0'], ['?limit=101'], ['?limit=abc']])('rejects %s', async (query) => {
+      const res = await list(ownerName('bad-limit'), query).expect(400);
+      expect(Object.keys(res.body.details.fields)).toEqual(['limit']);
+    });
+
+    it('rejects a cursor that is not a pet ID', async () => {
+      const res = await list(ownerName('bad-cursor'), '?cursor=nope').expect(400);
+      expect(Object.keys(res.body.details.fields)).toEqual(['cursor']);
+    });
+
+    it('leaves archived pets out of the list but keeps them readable', async () => {
+      const owner = ownerName('archived');
+      const kept = await create(owner, { name: 'Mochi', species: 'CAT' }).expect(201);
+      const gone = await create(owner, { name: 'Bantay', species: 'DOG' }).expect(201);
+      await prisma.pet.update({ where: { id: gone.body.id }, data: { archivedAt: new Date() } });
+      const res = await list(owner).expect(200);
+      expect(res.body.data.map((p: { id: string }) => p.id)).toEqual([kept.body.id]);
+      expect((await read(owner, gone.body.id).expect(200)).body.name).toBe('Bantay');
+    });
+  });
+
+  describe('GET /v1/pets/:id', () => {
+    it('returns the pet as it was created', async () => {
+      const owner = ownerName('read');
+      const created = await create(owner, { name: 'Mochi', species: 'CAT' }).expect(201);
+      expect((await read(owner, created.body.id).expect(200)).body).toEqual(created.body);
+    });
+
+    it("answers another owner's pet exactly like a pet that doesn't exist", async () => {
+      const a = ownerName('iso-a');
+      const b = ownerName('iso-b');
+      const petOfA = await create(a, { name: 'Mochi', species: 'CAT' }).expect(201);
+      const notFound = { statusCode: 404, code: 'NOT_FOUND', message: 'Not found', details: null };
+      const stolen = await read(b, petOfA.body.id).expect(404);
+      const missing = await read(b, randomUUID()).expect(404);
+      const malformed = await read(b, 'not-a-uuid').expect(404);
+      expect(stolen.body).toEqual(notFound);
+      expect(missing.body).toEqual(notFound);
+      expect(malformed.body).toEqual(notFound);
+      const listOfB = await list(b).expect(200);
+      expect(listOfB.body.data.map((p: { id: string }) => p.id)).not.toContain(petOfA.body.id);
+    });
+  });
 });
