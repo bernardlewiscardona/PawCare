@@ -1,11 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IfPresent } from '../../common/validation/if-present.js';
 
 /** Largest value of a PostgreSQL integer column, such as owners.version. */
 const MAX_INT4 = 2_147_483_647;
-
-/** Validate when the field is present, including null (IsOptional would let null through). */
-const IfPresent = () => ValidateIf((_object, value) => value !== undefined);
 
 /**
  * PATCH /v1/me. Send only the fields that change, plus the version last read. The first save
