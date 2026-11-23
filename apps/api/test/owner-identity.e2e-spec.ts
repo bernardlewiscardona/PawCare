@@ -3,15 +3,11 @@
  * Design: docs/superpowers/specs/2026-11-23-fn-01-dev-owner-identity-design.md
  */
 import { randomUUID } from 'node:crypto';
-import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module.js';
-import { configureApp } from '../src/app.setup.js';
-import { AUTH_MODE } from '../src/auth/auth-mode.js';
 import { OwnerIdentityService } from '../src/auth/owner-identity.service.js';
-import type { AuthMode } from '../src/config/env.validation.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { createApp } from './support/create-app.js';
 
 const SIGN_IN_REQUIRED = {
   statusCode: 401,
@@ -23,17 +19,6 @@ const SIGN_IN_REQUIRED = {
 // Owner names unique to this run, so parallel runs never share owners; deleted in afterAll.
 const run = randomUUID().slice(0, 8);
 const ownerName = (label: string) => `e2e-${run}-${label}`;
-
-async function createApp(mode: AuthMode): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(AUTH_MODE)
-    .useValue(mode)
-    .compile();
-  const app = moduleRef.createNestApplication();
-  configureApp(app);
-  await app.init();
-  return app;
-}
 
 describe('Owner identity (e2e)', () => {
   describe('with AUTH_MODE=dev', () => {
@@ -79,6 +64,7 @@ describe('Owner identity (e2e)', () => {
         phone: null,
         timeZone: 'UTC',
         version: 1,
+        profileSetupRequired: true,
       });
       const stored = await prisma.owner.findUniqueOrThrow({ where: { id: res.body.id } });
       expect(stored.authSubject).toBe(`dev:${name}`);

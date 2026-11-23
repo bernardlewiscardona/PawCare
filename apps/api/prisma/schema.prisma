@@ -34,16 +34,18 @@ enum AccountStatus {
 }
 
 model Owner {
-  id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  authSubject   String        @unique @map("auth_subject")
-  displayName   String        @map("display_name")
-  phone         String?
-  timeZone      String        @map("time_zone")
-  avatarAssetId String?       @map("avatar_asset_id") @db.Uuid
-  accountStatus AccountStatus @default(ACTIVE) @map("account_status")
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  version       Int           @default(1)
+  id                 String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  authSubject        String        @unique @map("auth_subject")
+  displayName        String        @map("display_name")
+  phone              String?
+  timeZone           String        @map("time_zone")
+  avatarAssetId      String?       @map("avatar_asset_id") @db.Uuid
+  accountStatus      AccountStatus @default(ACTIVE) @map("account_status")
+  /// Set on the owner's first profile save (PF-01); NULL means profile setup is still required.
+  profileCompletedAt DateTime?     @map("profile_completed_at") @db.Timestamptz(3)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version            Int           @default(1)
 
   avatarAsset         FileAsset?           @relation("OwnerAvatar", fields: [id, avatarAssetId], references: [ownerId, id], onDelete: Restrict, onUpdate: Restrict)
   fileAssets          FileAsset[]          @relation("FileAssetOwner")
