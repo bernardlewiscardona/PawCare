@@ -11,6 +11,8 @@ export const ErrorCode = {
   CONFLICT: 'CONFLICT',
   /** 409: an Idempotency-Key was already used for a request with a different body. */
   IDEMPOTENCY_KEY_REUSED: 'IDEMPOTENCY_KEY_REUSED',
+  /** 409: the owner must finish profile setup (PF-01) first, e.g. before adding a pet. */
+  PROFILE_SETUP_REQUIRED: 'PROFILE_SETUP_REQUIRED',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',

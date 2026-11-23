@@ -6,24 +6,35 @@ import {
   toKilograms,
 } from './pet-rules.js';
 
-const WEIGHT_ERROR = { error: 'Enter a weight above 0 and up to 1,000 kg.' };
+const KG_ERROR = { error: 'Enter a weight above 0 and up to 1,000 kg.' };
+const LB_ERROR = { error: 'Enter a weight above 0 and up to 2,204.62 lb.' };
 
 describe('toKilograms', () => {
   it('keeps kilograms and converts pounds, rounded to the gram', () => {
     expect(toKilograms(9.5, 'KG')).toBe(9.5);
+    expect(toKilograms(4.234, 'KG')).toBe(4.234);
+    expect(toKilograms(0.015, 'KG')).toBe(0.015);
     expect(toKilograms(22, 'LB')).toBe(9.979);
     expect(toKilograms(0.002, 'LB')).toBe(0.001);
     expect(toKilograms(1000, 'KG')).toBe(1000);
+    expect(toKilograms(2204.62, 'LB')).toBe(999.999);
   });
 
   it.each([
-    [0, 'KG'],
-    [-1, 'KG'],
-    [1000.001, 'KG'],
-    [2205, 'LB'],
-    [0.001, 'LB'],
-  ] as const)('rejects %s %s', (value, unit) => {
-    expect(toKilograms(value, unit)).toEqual(WEIGHT_ERROR);
+    [0, 'KG', KG_ERROR],
+    [-1, 'KG', KG_ERROR],
+    [1000.001, 'KG', KG_ERROR],
+    [2205, 'LB', LB_ERROR],
+    [2204.623, 'LB', LB_ERROR],
+    [0.001, 'LB', LB_ERROR],
+  ] as const)('rejects %s %s in the unit entered', (value, unit, error) => {
+    expect(toKilograms(value, unit)).toEqual(error);
+  });
+
+  it('rejects kilograms finer than a gram instead of rounding them', () => {
+    const error = { error: 'Enter kilograms with up to 3 decimal places.' };
+    expect(toKilograms(4.2345, 'KG')).toEqual(error);
+    expect(toKilograms(1000.0004, 'KG')).toEqual(error);
   });
 });
 
@@ -33,13 +44,14 @@ describe('checkPastOrToday', () => {
   it('accepts today and earlier', () => {
     expect(checkPastOrToday('2026-11-24', '2026-11-24', future)).toBe('2026-11-24');
     expect(checkPastOrToday('2019-02-28', '2026-11-24', future)).toBe('2019-02-28');
+    expect(checkPastOrToday('1900-01-01', '2026-11-24', future)).toBe('1900-01-01');
   });
 
   it('rejects a future date with the given message', () => {
     expect(checkPastOrToday('2026-11-25', '2026-11-24', future)).toEqual({ error: future });
   });
 
-  it.each([['2026-02-30'], ['24/11/2026'], ['2026-13-01'], ['']])(
+  it.each([['2026-02-30'], ['24/11/2026'], ['2026-13-01'], [''], ['0099-05-01'], ['1899-12-31']])(
     'rejects %j as not a real date',
     (value) => {
       expect(checkPastOrToday(value, '2026-11-24', future)).toEqual({

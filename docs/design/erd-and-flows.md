@@ -60,6 +60,8 @@ erDiagram
         string time_zone
         uuid avatar_asset_id FK "nullable"
         string account_status
+        timestamptz profile_completed_at "nullable"
+        string weight_unit "KG or LB"
     }
     PETS {
         uuid id PK

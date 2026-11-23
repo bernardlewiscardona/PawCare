@@ -5,8 +5,9 @@ import { isRuleError } from '../common/errors/rule-error.js';
 import { type FieldErrors, validationFailed } from '../common/errors/validation.js';
 import { IdempotencyService } from '../common/idempotency/idempotency.service.js';
 import { localDate } from '../common/time/local-date.js';
+import { validateBody } from '../common/validation/validate-body.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { CreatePetDto } from './dto/create-pet.dto.js';
+import { CreatePetDto } from './dto/create-pet.dto.js';
 import type { ListPetsQueryDto, PetListResponseDto } from './dto/list-pets-query.dto.js';
 import { PetResponseDto } from './dto/pet-response.dto.js';
 import {
@@ -42,25 +43,24 @@ export class PetsService {
     private readonly idempotency: IdempotencyService,
   ) {}
 
-  async create(
-    ownerId: string,
-    key: string | undefined,
-    dto: CreatePetDto,
-  ): Promise<PetResponseDto> {
-    if (key === undefined || !IDEMPOTENCY_KEY.test(key)) {
-      throw validationFailed({
-        'Idempotency-Key': ['Send an Idempotency-Key header of 1–100 visible characters.'],
-      });
-    }
+  async create(ownerId: string, key: string | undefined, body: unknown): Promise<PetResponseDto> {
     const owner = await this.prisma.owner.findUniqueOrThrow({
       where: { id: ownerId },
-      select: { timeZone: true },
+      select: { timeZone: true, profileCompletedAt: true },
     });
+    // "Today" is the owner's date, so their time zone must be set first (PF-01 setup).
+    if (owner.profileCompletedAt === null) {
+      throw new AppException(
+        ErrorCode.PROFILE_SETUP_REQUIRED,
+        HttpStatus.CONFLICT,
+        'Finish setting up your profile before adding a pet.',
+      );
+    }
     const today = localDate(owner.timeZone);
-    const input = normalizePet(dto, today);
+    const { key: requestKey, pet: input } = parseCreate(key, body, today);
 
     const petId = await this.idempotency.execute(
-      { ownerId, operation: 'pet.create', key, payload: input },
+      { ownerId, operation: 'pet.create', key: requestKey, payload: input },
       async (tx) => {
         const measuredOn =
           input.currentWeightKg === undefined ? undefined : (input.weightMeasuredOn ?? today);
@@ -132,9 +132,34 @@ export class PetsService {
   }
 }
 
-/** Applies every field rule, collecting all failures into one 400. */
-function normalizePet(dto: CreatePetDto, today: string): PetInput {
+/**
+ * Checks the key header, the body's types and every field rule, and reports all failures in one
+ * 400. Weight errors from the body's types (weight.value, weight.unit) go under `weight`, like
+ * the range error, so the app maps them to one input.
+ */
+function parseCreate(
+  key: string | undefined,
+  body: unknown,
+  today: string,
+): { key: string; pet: PetInput } {
   const errors: FieldErrors = {};
+  if (key === undefined || !IDEMPOTENCY_KEY.test(key)) {
+    errors['Idempotency-Key'] = ['Send an Idempotency-Key header of 1–100 visible characters.'];
+  }
+  const { value: dto, errors: typeErrors } = validateBody(CreatePetDto, body);
+  for (const [path, messages] of Object.entries(typeErrors)) {
+    const field = path.startsWith('weight.') ? 'weight' : path;
+    errors[field] = [...(errors[field] ?? []), ...messages];
+  }
+  const pet = Object.keys(typeErrors).length === 0 ? normalizePet(dto, today, errors) : undefined;
+  if (pet === undefined || key === undefined || Object.keys(errors).length > 0) {
+    throw validationFailed(errors);
+  }
+  return { key, pet };
+}
+
+/** Applies every field rule, adding failures to `errors`. */
+function normalizePet(dto: CreatePetDto, today: string, errors: FieldErrors): PetInput {
   const input: PetInput = { name: '', species: dto.species };
   const take = <K extends keyof PetInput>(field: K, result: PetInput[K] | { error: string }) => {
     if (isRuleError(result)) errors[field] = [result.error];
@@ -193,8 +218,6 @@ function normalizePet(dto: CreatePetDto, today: string): PetInput {
     }
   }
   if (dto.microchip !== undefined) take('microchip', normalizeMicrochip(dto.microchip));
-
-  if (Object.keys(errors).length > 0) throw validationFailed(errors);
   return input;
 }
 
