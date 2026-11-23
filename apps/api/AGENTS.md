@@ -22,3 +22,11 @@ Validation works with Zod, Valibot, ArkType or any other Standard Schema library
 `NodeAdapter` from `@nestjs/platform-node` is the fastest HTTP adapter, ahead of Fastify (https://docs.nestjs.com/http/performance.md).
 
 Nest's packages are ESM only, and this project is ESM too: relative imports end in `.js`, `__dirname` doesn't exist (use `import.meta.dirname`), and tests run on Vitest, so mocks are `vi.fn()`, not `jest.fn()`.
+
+## PawCare: owner identity and ownership rules (FN-01)
+
+- A global guard (`src/auth`) resolves the current owner for every route. Mark open routes with `@Public()`; read the owner with `@CurrentOwner() ownerId: string`. Until Google sign-in (AUTH-01), the owner comes from the `X-Dev-Owner` header when `AUTH_MODE=dev`.
+- Never take an owner ID from the request body, path or query.
+- Look up owner resources with `id` **and** `ownerId` together, never by `id` alone. Not found and not yours both throw `AppException(ErrorCode.NOT_FOUND, 404, 'Not found')` with no details.
+- Every endpoint that takes a resource ID gets e2e tests showing another owner receives that identical 404, including nested resources.
+- Never log the `X-Dev-Owner` value or an `auth_subject`.
