@@ -75,6 +75,14 @@ A stale `version` returns `409 CONFLICT` with the latest profile in `details.cur
 
 In http://localhost:3000/docs, click **Authorize** and enter a name under `dev-owner`. The mobile app sends `EXPO_PUBLIC_DEV_OWNER` from `apps/mobile/.env`. Use two names to check that one owner can't see the other's data.
 
+Pets (`POST` needs an `Idempotency-Key`; retrying with the same key returns the same pet instead of a duplicate). Save the profile first: until then `POST` returns 409 `PROFILE_SETUP_REQUIRED`:
+
+```bash
+curl -X POST -H 'X-Dev-Owner: bea' -H "Idempotency-Key: $(uuidgen)" -H 'Content-Type: application/json' \
+  -d '{"name":"Mochi","species":"CAT","weight":{"value":4.2,"unit":"KG"}}' http://localhost:3000/v1/pets
+curl -H 'X-Dev-Owner: bea' 'http://localhost:3000/v1/pets?limit=20'
+```
+
 ### Or run the API in Docker
 
 Instead of `pnpm db:up` and `pnpm dev:api`, you can run PostgreSQL **and** the API in containers. The API container uses Node 22 and the pnpm version pinned in `package.json`, so it works whatever Node.js your machine has.

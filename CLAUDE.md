@@ -38,7 +38,7 @@ Don't mark a story Done while an integration adapter it lists (e.g. a reminder s
 
 ## Product guardrails (never violate)
 
-- **No clinical judgment.** PawCare never diagnoses, prescribes, calculates doses, infers vaccine intervals, or converts units/doses. Health records are labeled **Owner-entered**, never "verified".
+- **No clinical judgment.** PawCare never diagnoses, prescribes, calculates doses, infers vaccine intervals, or converts doses or clinical units (body-weight kg/lb display is allowed; decision 23 Nov 2026). Health records are labeled **Owner-entered**, never "verified".
 - **Appointments are a diary, not bookings.** No clinic accounts, availability, reservations, confirmations, or messages. Use the exact copy from AP-01/AP-03/AP-04 (e.g. "Saved to your diary. Arrange or confirm this visit directly with your clinic").
 - **Reminders never act on their own.** A reminder never marks care complete, logs a dose as taken, deducts stock, or infers appointment attendance. Cross-feature effects happen only through explicit user actions.
 - **Archive/void, don't delete.** Everyday corrections use archive or void (with reason). Permanent deletion exists only in FN-02 account deletion.

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiHeader,
@@ -25,16 +26,26 @@ export class PetsController {
   /** Registers a pet. Retrying with the same Idempotency-Key returns the same pet. */
   @Post()
   @ApiHeader({ name: 'Idempotency-Key', required: true, description: 'A new value per pet' })
+  @ApiBody({ type: CreatePetDto })
   @ApiCreatedResponse({ type: PetResponseDto })
-  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED; messages per field in details.fields' })
-  @ApiConflictResponse({ description: 'IDEMPOTENCY_KEY_REUSED: key used for a different pet' })
+  @ApiBadRequestResponse({
+    description:
+      'VALIDATION_FAILED; messages per field in details.fields, including Idempotency-Key. ' +
+      'Every weight error (value or unit) is under "weight".',
+  })
+  @ApiConflictResponse({
+    description:
+      'IDEMPOTENCY_KEY_REUSED: key used for a different pet. PROFILE_SETUP_REQUIRED: the ' +
+      'owner must finish profile setup (PATCH /v1/me) before adding a pet.',
+  })
   @ApiUnauthorizedResponse({ description: 'No owner identity (code UNAUTHORIZED)' })
   create(
     @CurrentOwner() ownerId: string,
     @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: CreatePetDto,
+    // Validated in the service, so header and body errors come back in one response.
+    @Body() body: unknown,
   ): Promise<PetResponseDto> {
-    return this.pets.create(ownerId, key, dto);
+    return this.pets.create(ownerId, key, body);
   }
 
   /** The owner's active pets, oldest first, paginated with nextCursor. */

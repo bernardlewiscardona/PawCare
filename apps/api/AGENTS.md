@@ -36,3 +36,11 @@ Nest's packages are ESM only, and this project is ESM too: relative imports end 
 - `VALIDATION_FAILED` details are `{ errors: string[], fields: { "<field>": string[] } }`. The global `ValidationPipe` produces them; for domain checks throw `validationFailed(fields)` from `src/common/errors/validation.ts` so the app can show each message next to its field.
 - Editable resources take the `version` the client last read. Update where `id`, `ownerId` and `version` all match and increment `version`; if nothing matched, throw `CONFLICT` (409) with `details: { current: <response DTO> }`. Never overwrite silently.
 - Write the mutation, its `audit_events` row and its `outbox_events` row in one `prisma.$transaction`. Audit metadata and outbox payloads carry field names only, never names, phone numbers, health text or other values.
+
+## PawCare: creates and lists (PF-02)
+
+- Every create takes an `Idempotency-Key` header and runs through `IdempotencyService.execute()` (`src/common/idempotency`). Hash the normalised input (before defaults); the resource, its audit row and its outbox row go inside the `create(tx)` callback. A key reused with a different body is `409 IDEMPOTENCY_KEY_REUSED`.
+- Validate a create's header and body together: take `@Body() body: unknown` (the global pipe skips it), document it with `@ApiBody`, and call `validateBody(Dto, body)` (`src/common/validation`), so every field error, header included, comes back in one 400.
+- A create that judges dates against the owner's "today" needs a finished profile: answer `409 PROFILE_SETUP_REQUIRED` while `profileCompletedAt` is null.
+- List endpoints return `{ data, nextCursor }`: `limit` 1–100 (default 20) and `cursor` = the last ID of the previous page; order by `id` (UUIDv7, so creation order).
+- A malformed ID in a path is answered as `404 NOT_FOUND`, the same as a missing or another owner's resource.

@@ -1,6 +1,6 @@
 # PF-02 — Register a pet (API)
 
-Date: 23 Nov 2026 · Status: approved 23 Nov 2026 · Ticket: PF-02 (spec: `docs/spec/epics/PF.md`)
+Date: 23 Nov 2026 · Status: approved 23 Nov 2026, implemented on `PF-02-register-pet` · Ticket: PF-02 (spec: `docs/spec/epics/PF.md`)
 
 ## Intent
 
@@ -69,9 +69,9 @@ it in `changedFields`).
 | `speciesOther` | Required when species is `OTHER` (trimmed, 1–100); rejected otherwise |
 | `breed` | Optional; trimmed; 1–100 |
 | `sex` | Optional; `MALE`, `FEMALE`, `UNKNOWN` (default `UNKNOWN`) |
-| `birthDate` | Optional `YYYY-MM-DD`; not after today in the owner's time zone |
+| `birthDate` | Optional `YYYY-MM-DD` from 1900 on; not after today in the owner's time zone |
 | `birthDateEstimated` | Optional boolean (default false); `true` needs `birthDate` |
-| `weight` | Optional `{ value, unit }`, unit `KG` or `LB`; stored in kg rounded to 3 decimals (1 lb = 0.45359237 kg); must be >0 and ≤1,000 kg after conversion |
+| `weight` | Optional `{ value, unit }`, unit `KG` or `LB`. Kilograms take at most 3 decimals (1 g steps); pounds are converted (1 lb = 0.45359237 kg) and rounded to the gram. Must be >0 and ≤1,000 kg, checked before rounding; the error names the limit in the unit entered (1,000 kg or 2,204.62 lb). Every weight error, including a wrong type or unit, is under `weight` |
 | `weightMeasuredOn` | Optional `YYYY-MM-DD`, only with `weight`; defaults to today in the owner's zone; not in the future |
 | `microchip` | Optional; trimmed; 1–50 letters or digits |
 
@@ -82,7 +82,11 @@ it in `changedFields`).
   original pet with **201** and creates nothing. The same key with a different body →
   **409** with a new code `IDEMPOTENCY_KEY_REUSED`. Two requests with the same key at once
   create one pet; the second returns it. Keys expire after 24 hours.
-- Missing header → 400 with `details.fields["Idempotency-Key"]`.
+- Missing or malformed header → 400 with `details.fields["Idempotency-Key"]`, reported in the
+  same response as any body errors.
+- **Profile setup first:** an owner who hasn't finished PF-01 setup (`profileSetupRequired`) gets
+  **409** `PROFILE_SETUP_REQUIRED` and nothing is stored, so the same key works after setup.
+  "Today" is the owner's date, and until setup the time zone is only the `UTC` placeholder.
 
 **Pet response.** `id`, `name`, `species`, `speciesOther`, `breed`, `sex`, `birthDate`,
 `birthDateEstimated`, `currentWeightKg` (number or null), `weightMeasuredOn`, `microchip`,
@@ -97,7 +101,7 @@ No photo field yet (added when MR-02 lands).
 UUID → the same `404 NOT_FOUND` "Not found". Archived pets are still returned here (history
 stays reachable); PF-04 adds the archive fields.
 
-**Error codes.** Add `IDEMPOTENCY_KEY_REUSED` to `error-codes.ts`. Otherwise reuse
+**Error codes.** Add `IDEMPOTENCY_KEY_REUSED` and `PROFILE_SETUP_REQUIRED` to `error-codes.ts`. Otherwise reuse
 `VALIDATION_FAILED`, `NOT_FOUND`, `UNAUTHORIZED`.
 
 ## Tests (written first)
@@ -129,6 +133,11 @@ landed with PF-02; CLAUDE.md guardrail wording: body-weight kg/lb display is all
 - Invalid UUID in the path → 404, not 400, so the response never hints at ID formats.
 - Pet list excludes archived pets now, ahead of PF-04, because archived pets must stay out of
   active selectors.
+
+- Added after the spec review (23 Nov 2026, approved by the user): pets need a finished
+  profile (`PROFILE_SETUP_REQUIRED`), so dates are never judged by the placeholder `UTC` zone;
+  kilograms finer than a gram are rejected rather than rounded; dates before 1900 are rejected as
+  typos; the header and body are validated together.
 
 ## Left to the builder
 
