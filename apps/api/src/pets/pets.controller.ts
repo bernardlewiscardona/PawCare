@@ -1,15 +1,18 @@
-import { Body, Controller, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiHeader,
+  ApiNotFoundResponse,
+  ApiOkResponse,
   ApiSecurity,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CurrentOwner } from '../auth/current-owner.decorator.js';
 import { CreatePetDto } from './dto/create-pet.dto.js';
+import { ListPetsQueryDto, PetListResponseDto } from './dto/list-pets-query.dto.js';
 import { PetResponseDto } from './dto/pet-response.dto.js';
 import { PetsService } from './pets.service.js';
 
@@ -32,5 +35,24 @@ export class PetsController {
     @Body() dto: CreatePetDto,
   ): Promise<PetResponseDto> {
     return this.pets.create(ownerId, key, dto);
+  }
+
+  /** The owner's active pets, oldest first, paginated with nextCursor. */
+  @Get()
+  @ApiOkResponse({ type: PetListResponseDto })
+  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED on limit or cursor' })
+  list(
+    @CurrentOwner() ownerId: string,
+    @Query() query: ListPetsQueryDto,
+  ): Promise<PetListResponseDto> {
+    return this.pets.list(ownerId, query);
+  }
+
+  /** One of the owner's pets, including archived ones. */
+  @Get(':id')
+  @ApiOkResponse({ type: PetResponseDto })
+  @ApiNotFoundResponse({ description: 'NOT_FOUND: no such pet for this owner' })
+  get(@CurrentOwner() ownerId: string, @Param('id') id: string): Promise<PetResponseDto> {
+    return this.pets.get(ownerId, id);
   }
 }

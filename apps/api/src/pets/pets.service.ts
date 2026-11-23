@@ -7,6 +7,7 @@ import { IdempotencyService } from '../common/idempotency/idempotency.service.js
 import { localDate } from '../common/time/local-date.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { CreatePetDto } from './dto/create-pet.dto.js';
+import type { ListPetsQueryDto, PetListResponseDto } from './dto/list-pets-query.dto.js';
 import { PetResponseDto } from './dto/pet-response.dto.js';
 import {
   checkPastOrToday,
@@ -17,6 +18,8 @@ import {
 } from './pet-rules.js';
 
 const IDEMPOTENCY_KEY = /^[\x21-\x7E]{1,100}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DEFAULT_PAGE_SIZE = 20;
 
 /** Validated pet fields, before defaults. This is also what a retry must repeat exactly. */
 interface PetInput {
@@ -99,7 +102,31 @@ export class PetsService {
       },
     );
 
-    const pet = await this.prisma.pet.findFirst({ where: { id: petId, ownerId } });
+    return this.get(ownerId, petId);
+  }
+
+  /** Active pets, oldest first (UUIDv7 order), one page at a time. */
+  async list(ownerId: string, query: ListPetsQueryDto): Promise<PetListResponseDto> {
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE;
+    const pets = await this.prisma.pet.findMany({
+      where: {
+        ownerId,
+        archivedAt: null,
+        ...(query.cursor ? { id: { gt: query.cursor } } : {}),
+      },
+      orderBy: { id: 'asc' },
+      take: limit + 1,
+    });
+    const page = pets.slice(0, limit);
+    return {
+      data: page.map((pet) => PetResponseDto.from(pet)),
+      nextCursor: pets.length > limit ? page[page.length - 1].id : null,
+    };
+  }
+
+  /** One pet, archived or not. Another owner's pet and a missing one are the same 404. */
+  async get(ownerId: string, id: string): Promise<PetResponseDto> {
+    const pet = UUID.test(id) ? await this.prisma.pet.findFirst({ where: { id, ownerId } }) : null;
     if (!pet) throw new AppException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, 'Not found');
     return PetResponseDto.from(pet);
   }
