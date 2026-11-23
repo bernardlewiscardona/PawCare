@@ -18,6 +18,12 @@ export class OwnerResponseDto {
   @ApiProperty({ example: 1, description: 'Send back on edits for conflict detection' })
   version!: number;
 
+  @ApiProperty({
+    example: true,
+    description: 'True until the owner saves their profile once; show profile setup while true',
+  })
+  profileSetupRequired!: boolean;
+
   static from(owner: Owner): OwnerResponseDto {
     return {
       id: owner.id,
@@ -25,6 +31,7 @@ export class OwnerResponseDto {
       phone: owner.phone,
       timeZone: owner.timeZone,
       version: owner.version,
+      profileSetupRequired: owner.profileCompletedAt === null,
     };
   }
 }
