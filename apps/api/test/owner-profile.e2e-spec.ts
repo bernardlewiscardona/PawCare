@@ -117,6 +117,24 @@ describe('Owner profile (e2e)', () => {
     expect(Object.keys(res.body.details.fields)).toEqual(['version']);
   });
 
+  it('rejects null for the name and time zone instead of failing', async () => {
+    const res = await patch(ownerName('nulls'), {
+      version: 1,
+      displayName: null,
+      timeZone: null,
+    }).expect(400);
+    expect(Object.keys(res.body.details.fields).sort()).toEqual(['displayName', 'timeZone']);
+  });
+
+  it('rejects a version beyond the stored integer range', async () => {
+    const res = await patch(ownerName('huge-version'), {
+      version: 3000000000,
+      displayName: 'Bea',
+      timeZone: 'UTC',
+    }).expect(400);
+    expect(Object.keys(res.body.details.fields)).toEqual(['version']);
+  });
+
   it('rejects fields that are not part of the profile', async () => {
     const res = await patch(ownerName('extra'), {
       version: 1,

@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
+
+/** Largest value of a PostgreSQL integer column, such as owners.version. */
+const MAX_INT4 = 2_147_483_647;
+
+/** Validate when the field is present, including null (IsOptional would let null through). */
+const IfPresent = () => ValidateIf((_object, value) => value !== undefined);
 
 /**
  * PATCH /v1/me. Send only the fields that change, plus the version last read. The first save
@@ -9,15 +15,16 @@ export class UpdateOwnerProfileDto {
   @ApiProperty({ example: 1, description: 'The version of the profile you last read' })
   @IsInt()
   @Min(1)
+  @Max(MAX_INT4)
   version!: number;
 
   @ApiPropertyOptional({ example: 'Bea Santos', description: '1–100 characters, trimmed' })
-  @IsOptional()
+  @IfPresent()
   @IsString()
   displayName?: string;
 
   @ApiPropertyOptional({ example: 'Asia/Manila', description: 'IANA time zone, or UTC' })
-  @IsOptional()
+  @IfPresent()
   @IsString()
   timeZone?: string;
 
