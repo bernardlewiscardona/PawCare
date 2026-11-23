@@ -6,12 +6,8 @@ import type { Owner } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OwnerResponseDto } from './dto/owner-response.dto.js';
 import type { UpdateOwnerProfileDto } from './dto/update-owner-profile.dto.js';
-import {
-  checkTimeZone,
-  normalizeDisplayName,
-  normalizePhone,
-  type RuleError,
-} from './profile-rules.js';
+import { type RuleError, isRuleError } from '../common/errors/rule-error.js';
+import { checkTimeZone, normalizeDisplayName, normalizePhone } from './profile-rules.js';
 
 const PROFILE_FIELDS = ['displayName', 'phone', 'timeZone', 'weightUnit'] as const;
 type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -113,10 +109,6 @@ function normalizeChanges(dto: UpdateOwnerProfileDto): ProfileChanges {
   if (dto.weightUnit !== undefined) apply('weightUnit', dto.weightUnit);
   if (Object.keys(errors).length > 0) throw validationFailed(errors);
   return changes;
-}
-
-function isRuleError(value: unknown): value is RuleError {
-  return typeof value === 'object' && value !== null && 'error' in value;
 }
 
 function conflict(current: Owner): AppException {
