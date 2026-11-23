@@ -46,7 +46,7 @@ Don't mark a story Done while an integration adapter it lists (e.g. a reminder s
 
 ## Engineering rules (shared requirements, condensed)
 
-- **Authorization:** check ownership server-side on every request, including nested resources and attachments. Inaccessible = generic not-found; leak nothing (names, counts, existence).
+- **Authorization:** sign-in is postponed until AUTH-01 (Google). The owner comes from `@CurrentOwner()`, resolved by the global guard from the dev-only `X-Dev-Owner` header (`AUTH_MODE=dev`); see `apps/api/AGENTS.md`. Check ownership server-side on every request, including nested resources and attachments. Inaccessible = generic not-found; leak nothing (names, counts, existence).
 - **Idempotency:** creates and transactional actions accept a client request ID; retries create at most one record.
 - **Concurrency:** every editable resource has a `version`; stale writes return a conflict with reload/review, never silent overwrite.
 - **Collections:** stable IDs, deterministic sort with ID tiebreak, pagination default 20 / max 100.

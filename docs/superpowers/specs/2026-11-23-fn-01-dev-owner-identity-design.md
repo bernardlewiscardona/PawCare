@@ -1,6 +1,6 @@
 # FN-01 — Owner access boundaries with a development owner identity
 
-Date: 23 Nov 2026 · Status: awaiting approval · Ticket: FN-01 (spec: `docs/spec/epics/FN.md`)
+Date: 23 Nov 2026 · Status: approved 23 Nov 2026, implemented on `FN-01-owner-access` · Ticket: FN-01 (spec: `docs/spec/epics/FN.md`)
 
 ## Intent
 

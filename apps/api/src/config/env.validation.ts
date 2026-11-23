@@ -6,6 +6,14 @@ export const NODE_ENVS = ['development', 'test', 'production'] as const;
 export type NodeEnv = (typeof NODE_ENVS)[number];
 
 /**
+ * How the API works out who the caller is. `none` rejects every protected request (the safe
+ * default). `dev` trusts the X-Dev-Owner header and is refused in production. Google sign-in
+ * (AUTH-01) adds its own mode.
+ */
+export const AUTH_MODES = ['none', 'dev'] as const;
+export type AuthMode = (typeof AUTH_MODES)[number];
+
+/**
  * Every environment variable the API reads. Read config through ConfigService<Env, true>;
  * never read process.env elsewhere.
  */
@@ -23,6 +31,9 @@ export class Env {
 
   @Matches(/^postgres(ql)?:\/\/.+/)
   DATABASE_URL!: string;
+
+  @IsIn(AUTH_MODES)
+  AUTH_MODE: AuthMode = 'none';
 }
 
 /**
@@ -34,12 +45,16 @@ export function validateEnv(config: Record<string, unknown>): Env {
     enableImplicitConversion: true,
     exposeDefaultValues: true,
   });
-  const errors = validateSync(env, { skipMissingProperties: false });
+  const problems = validateSync(env, { skipMissingProperties: false }).map(
+    (e) => `  - ${e.property}: ${describe(e.property)}`,
+  );
+  if (env.NODE_ENV === 'production' && env.AUTH_MODE === 'dev') {
+    problems.push('  - AUTH_MODE: dev is not allowed when NODE_ENV is production');
+  }
 
-  if (errors.length > 0) {
-    const problems = errors.map((e) => `  - ${e.property}: ${describe(e.property)}`).join('\n');
+  if (problems.length > 0) {
     throw new Error(
-      `Invalid API environment configuration:\n${problems}\n` +
+      `Invalid API environment configuration:\n${problems.join('\n')}\n` +
         'Set these in apps/api/.env (copy apps/api/.env.example) or in the process environment.',
     );
   }
@@ -56,6 +71,8 @@ function describe(property: string): string {
       return 'must be a host or interface address, e.g. 0.0.0.0';
     case 'DATABASE_URL':
       return 'is required and must be a postgresql:// connection string';
+    case 'AUTH_MODE':
+      return `must be one of ${AUTH_MODES.join(', ')}`;
     default:
       return 'is invalid';
   }

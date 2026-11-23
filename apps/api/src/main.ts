@@ -19,7 +19,12 @@ async function bootstrap(): Promise<void> {
   if (config.get('NODE_ENV', { infer: true }) !== 'production') {
     const doc = SwaggerModule.createDocument(
       app,
-      new DocumentBuilder().setTitle('PawCare API').setVersion('1').addBearerAuth().build(),
+      new DocumentBuilder()
+        .setTitle('PawCare API')
+        .setVersion('1')
+        // Development owner identity (AUTH_MODE=dev) until Google sign-in (AUTH-01).
+        .addApiKey({ type: 'apiKey', in: 'header', name: 'X-Dev-Owner' }, 'dev-owner')
+        .build(),
     );
     SwaggerModule.setup('docs', app, doc);
   }

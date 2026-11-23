@@ -56,6 +56,16 @@ Check it:
 
 If a required environment variable is missing or invalid, the API refuses to start and lists which variable is wrong. It never prints the value.
 
+### Who is the owner? (sign-in is postponed)
+
+Sign-in isn't built yet; Google sign-in comes later (AUTH-01). Until then, set `AUTH_MODE=dev` in `apps/api/.env` and name the owner in an `X-Dev-Owner` header (1–64 letters, digits, `_` or `-`). The first request with a new name creates that owner. Without `AUTH_MODE=dev` (the default is `none`), every `/v1` route returns 401. The API refuses to start with `AUTH_MODE=dev` in production. The Docker `api` service already sets it.
+
+```bash
+curl -H 'X-Dev-Owner: bea' http://localhost:3000/v1/me
+```
+
+In http://localhost:3000/docs, click **Authorize** and enter a name under `dev-owner`. The mobile app sends `EXPO_PUBLIC_DEV_OWNER` from `apps/mobile/.env`. Use two names to check that one owner can't see the other's data.
+
 ### Or run the API in Docker
 
 Instead of `pnpm db:up` and `pnpm dev:api`, you can run PostgreSQL **and** the API in containers. The API container uses Node 22 and the pnpm version pinned in `package.json`, so it works whatever Node.js your machine has.

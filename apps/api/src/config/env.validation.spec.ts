@@ -47,6 +47,33 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...valid, NODE_ENV: 'staging-ish' })).toThrow(/NODE_ENV/);
   });
 
+  it('defaults AUTH_MODE to none, so protected routes reject every request', () => {
+    expect(validateEnv(valid).AUTH_MODE).toBe('none');
+  });
+
+  it('accepts AUTH_MODE=dev outside production', () => {
+    expect(validateEnv({ ...valid, AUTH_MODE: 'dev' }).AUTH_MODE).toBe('dev');
+    expect(validateEnv({ ...valid, NODE_ENV: 'test', AUTH_MODE: 'dev' }).AUTH_MODE).toBe('dev');
+  });
+
+  it('rejects an unknown AUTH_MODE without echoing it', () => {
+    let message = '';
+    try {
+      validateEnv({ ...valid, AUTH_MODE: 'letmein' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toMatch(/AUTH_MODE/);
+    expect(message).not.toMatch(/letmein/);
+  });
+
+  it('refuses the development owner header in production', () => {
+    expect(() => validateEnv({ ...valid, NODE_ENV: 'production', AUTH_MODE: 'dev' })).toThrow(
+      /AUTH_MODE[\s\S]*production/,
+    );
+    expect(validateEnv({ ...valid, NODE_ENV: 'production' }).AUTH_MODE).toBe('none');
+  });
+
   it('reports every invalid variable at once', () => {
     expect(() => validateEnv({ PORT: 'abc' })).toThrow(
       /PORT[\s\S]*DATABASE_URL|DATABASE_URL[\s\S]*PORT/,
