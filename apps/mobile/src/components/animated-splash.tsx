@@ -42,33 +42,37 @@ export function AnimatedSplash({ hold = false }: { hold?: boolean }) {
   const logoLoaded = useRef(false);
 
   // Takes over once the logo has been drawn (so the native splash never uncovers a blank
-  // canvas), or after a safety timeout so the splash can never stay up.
-  const start = useCallback(async () => {
-    if (started.current || isHolding(holdRef.current, Date.now() - mountedAt)) return;
-    started.current = true;
-    // Read once before the first frame; the motion hook's first value is only a guess.
-    const reduced = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
-    setZoom(!reduced);
-    await SplashScreen.hideAsync().catch(() => undefined);
+  // canvas), or after a safety timeout so the splash can never stay up. `force` skips the hold.
+  const start = useCallback(
+    async (force = false) => {
+      if (started.current) return;
+      if (!force && isHolding(holdRef.current, Date.now() - mountedAt)) return;
+      started.current = true;
+      // Read once before the first frame; the motion hook's first value is only a guess.
+      const reduced = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
+      setZoom(!reduced);
+      await SplashScreen.hideAsync().catch(() => undefined);
 
-    const heartbeat = reduced
-      ? Animated.delay(NATIVE_FADE_MS)
-      : Animated.sequence([
-          Animated.delay(NATIVE_FADE_MS),
-          beatTo(beat, 1.1, 140, Easing.out(Easing.quad)),
-          beatTo(beat, 0.97, 130, Easing.inOut(Easing.quad)),
-          beatTo(beat, 1.06, 120, Easing.out(Easing.quad)),
-          beatTo(beat, 1, 160, Easing.inOut(Easing.quad)),
-        ]);
-    heartbeat.start(() => {
-      setRevealing(true);
-      Animated.timing(reveal, {
-        toValue: 1,
-        ...(reduced ? REVEAL_REDUCED : REVEAL),
-        useNativeDriver: true,
-      }).start(() => setDone(true));
-    });
-  }, [beat, reveal]);
+      const heartbeat = reduced
+        ? Animated.delay(NATIVE_FADE_MS)
+        : Animated.sequence([
+            Animated.delay(NATIVE_FADE_MS),
+            beatTo(beat, 1.1, 140, Easing.out(Easing.quad)),
+            beatTo(beat, 0.97, 130, Easing.inOut(Easing.quad)),
+            beatTo(beat, 1.06, 120, Easing.out(Easing.quad)),
+            beatTo(beat, 1, 160, Easing.inOut(Easing.quad)),
+          ]);
+      heartbeat.start(() => {
+        setRevealing(true);
+        Animated.timing(reveal, {
+          toValue: 1,
+          ...(reduced ? REVEAL_REDUCED : REVEAL),
+          useNativeDriver: true,
+        }).start(() => setDone(true));
+      });
+    },
+    [beat, reveal, mountedAt],
+  );
 
   // While `hold` is set (the database is opening) the takeover waits; the safety timeout only
   // starts once the hold is released. Without a hold this is the original behaviour.
@@ -81,9 +85,10 @@ export function AnimatedSplash({ hold = false }: { hold?: boolean }) {
     return () => clearTimeout(fallback);
   }, [hold, start]);
 
-  // A stuck open must not keep the splash up forever: take over after MAX_HOLD_MS regardless.
+  // A stuck open must not keep the splash up forever: take over after MAX_HOLD_MS regardless,
+  // forced so a wall clock that moved can't make the hold look unfinished.
   useEffect(() => {
-    const limit = setTimeout(() => void start(), MAX_HOLD_MS);
+    const limit = setTimeout(() => void start(true), MAX_HOLD_MS);
     return () => clearTimeout(limit);
   }, [start]);
 
