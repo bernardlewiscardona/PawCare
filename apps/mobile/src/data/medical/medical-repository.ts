@@ -10,7 +10,7 @@ import {
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { DataDeps } from '../deps';
-import { notFound, validationFailed } from '../errors';
+import { confirmationRequired, notFound, validationFailed } from '../errors';
 import type { SqlConnection } from '../sql';
 import type { CreateMedicalEventInput, MedicalEvent } from '../types';
 import { parseCreateMedicalEventInput } from './medical-input';
@@ -120,6 +120,16 @@ export function createMedicalRepository(
           [ownerId],
         );
         const input = normalizeMedical(dto, localDate(owner!.time_zone, deps.now()));
+        // Field errors come first; the warning only appears once every field is valid.
+        if (
+          pet.birth_date !== null &&
+          input.occurrenceDate < pet.birth_date &&
+          dto.confirmBeforeBirth !== true
+        ) {
+          throw confirmationRequired({
+            occurrenceDate: [`This date is before ${pet.name}'s birth date. Save anyway?`],
+          });
+        }
 
         const id = deps.newId();
         const at = deps.now().toISOString();
