@@ -45,3 +45,4 @@ IN-04,Configure low-stock and expiry alerts,User Story,IN,Medium,Proposed,IN-01 
 LOCAL-01,Local-first foundation on the phone,Task,FN,High,Done,PF-02,docs/superpowers/specs/2026-11-24-local-first-foundation-design.md
 LOCAL-01-IOS,Verify the phone database on iOS,Task,FN,Medium,Proposed,LOCAL-01,docs/superpowers/specs/2026-11-24-local-first-foundation-design.md
 LOCAL-02,Export and import data to move phones,Task,FN,High,Proposed,LOCAL-01,docs/spec/00-overview.md
+LOCAL-03,Tighten the date checks in migrations 0001 and 0003,Task,FN,Medium,Proposed,LOCAL-01,docs/decisions.md
