@@ -141,3 +141,8 @@ export interface CreateVaccinationInput {
   /** Set after the owner confirms a date before the pet's birth date. */
   confirmBeforeBirth?: boolean;
 }
+
+export interface VaccinationPage {
+  data: Vaccination[];
+  nextCursor: string | null;
+}
