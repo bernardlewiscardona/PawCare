@@ -18,7 +18,8 @@ PF-02-APP,Pet registration screens on the phone data layer,Task,PF,High,Proposed
 PF-03,Select and edit pet profiles,User Story,PF,High,Done,PF-02,docs/spec/epics/PF.md
 PF-03-APP,Pet switcher and edit screens on the phone data layer,Task,PF,High,Proposed,PF-03 LOCAL-01,docs/spec/epics/PF.md
 PF-04,Archive and restore a pet,User Story,PF,Medium,Proposed,PF-02 AP-03 RM-02,docs/spec/epics/PF.md
-MR-01,Record a medical event,User Story,MR,High,Proposed,PF-02,docs/spec/epics/MR.md
+MR-01,Record a medical event,User Story,MR,High,In Progress,PF-02,docs/spec/epics/MR.md
+MR-01-APP,Medical event screens on the phone data layer,Task,MR,High,Proposed,MR-01 LOCAL-01,docs/spec/epics/MR.md
 MR-02,Attach medical documents,User Story,MR,High,Proposed,FN-01 MR-01,docs/spec/epics/MR.md
 MR-03,Browse the unified pet health timeline,User Story,MR,High,Proposed,MR-01 VC-01 VC-02,docs/spec/epics/MR.md
 MR-03-AP,Appointment entries in the health timeline,Task,MR,High,Proposed,MR-03 AP-05,docs/spec/epics/MR.md
