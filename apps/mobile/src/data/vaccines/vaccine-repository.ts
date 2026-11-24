@@ -12,15 +12,16 @@ import {
   insertCareRecord,
   ownerToday,
   readActivePet,
+  readOwnedPetId,
   type ActivePet,
 } from '../care-records/care-record';
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { DataDeps } from '../deps';
 import { confirmationRequired, notFound, validationFailed } from '../errors';
-import { UUID } from '../paging';
+import { UUID, badCursor, parsePageQuery } from '../paging';
 import type { SqlConnection } from '../sql';
-import type { CreateVaccinationInput, Vaccination } from '../types';
+import type { CreateVaccinationInput, Vaccination, VaccinationPage } from '../types';
 import { parseCreateVaccinationInput } from './vaccine-input';
 
 export interface VaccineRepository {
@@ -28,6 +29,8 @@ export interface VaccineRepository {
   create(input: CreateVaccinationInput): Promise<Vaccination>;
   /** Any status, archived pets included. Unknown or another owner's → `NOT_FOUND`. */
   get(id: string): Promise<Vaccination>;
+  /** A pet's ACTIVE vaccinations, newest administration first, ID as tiebreak; archived pets too. */
+  listForPet(petId: string, query?: { limit?: number; cursor?: string }): Promise<VaccinationPage>;
 }
 
 interface VaccinationRow {
@@ -224,6 +227,45 @@ export function createVaccineRepository(
           return toVaccination((await readVaccination(c, ownerId, id))!, today);
         },
       );
+    },
+
+    async listForPet(petId, query = {}) {
+      const { limit, cursor } = parsePageQuery(query);
+      return db.read(async (c) => {
+        const ownedPetId = await readOwnedPetId(c, ownerId, petId);
+        if (ownedPetId === undefined) throw notFound();
+
+        let after: { occurrence_date: string; id: string } | undefined;
+        if (cursor !== undefined) {
+          after = await c.get<{ occurrence_date: string; id: string }>(
+            `SELECT occurrence_date, id FROM care_records
+             WHERE owner_id = ? AND pet_id = ? AND id = ? AND kind = 'VACCINE'`,
+            [ownerId, ownedPetId, cursor],
+          );
+          if (!after) throw badCursor();
+        }
+        const rows = await c.all<VaccinationRow>(
+          `${SELECT_VACCINATION}
+           WHERE r.owner_id = ? AND r.pet_id = ? AND r.status = 'ACTIVE'
+             AND (? IS NULL OR (r.occurrence_date, r.id) < (?, ?))
+           ORDER BY r.occurrence_date DESC, r.id DESC
+           LIMIT ?`,
+          [
+            ownerId,
+            ownedPetId,
+            after?.id ?? null,
+            after?.occurrence_date ?? null,
+            after?.id ?? null,
+            limit + 1,
+          ],
+        );
+        const today = await ownerToday(c, ownerId, deps);
+        const page = rows.slice(0, limit);
+        return {
+          data: page.map((row) => toVaccination(row, today)),
+          nextCursor: rows.length > limit ? page[page.length - 1].id : null,
+        };
+      });
     },
 
     async get(id) {
