@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r run typecheck",
-    "build": "pnpm --filter api build",
+    "build": "pnpm --filter @pawcare/core build && pnpm --filter api build",
     "test": "pnpm -r run test",
     "test:e2e": "pnpm --filter api test:e2e",
     "prisma:validate": "pnpm --filter api prisma:validate",

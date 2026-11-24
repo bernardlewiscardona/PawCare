@@ -1,4 +1,4 @@
-import type { RuleError } from '../common/errors/rule-error.js';
+import type { RuleError } from './errors.js';
 
 const KG_PER_LB = 0.45359237;
 const MAX_KG = 1000;
@@ -54,16 +54,15 @@ export function checkPastOrToday(
 }
 
 /**
- * Body weight in kilograms, to the gram (the column holds 3 decimals). Kilograms are taken as
- * typed, so more than 3 decimals is an error; pounds are converted and rounded. The range is
- * checked before rounding. Only body weight is ever converted (decision 23 Nov 2026); doses and
- * clinical units never are.
+ * Body weight in whole grams. Kilograms are taken as typed, so more than 3 decimals is an error;
+ * pounds are converted and rounded. The range is checked before rounding. Only body weight is
+ * ever converted (decision 23 Nov 2026); doses and clinical units never are.
  */
-export function toKilograms(value: number, unit: 'KG' | 'LB'): number | RuleError {
+export function toGrams(value: number, unit: 'KG' | 'LB'): number | RuleError {
   if (unit === 'KG' && Math.abs(value * 1000 - Math.round(value * 1000)) > 1e-6) {
     return GRAM_ERROR;
   }
   const kilograms = value * (unit === 'LB' ? KG_PER_LB : 1);
-  const rounded = Math.round(kilograms * 1000) / 1000;
-  return kilograms > 0 && kilograms <= MAX_KG && rounded > 0 ? rounded : WEIGHT_ERROR[unit];
+  const grams = Math.round(kilograms * 1000);
+  return kilograms > 0 && kilograms <= MAX_KG && grams > 0 ? grams : WEIGHT_ERROR[unit];
 }

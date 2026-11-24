@@ -52,3 +52,33 @@ describe('normalizePhone', () => {
     },
   );
 });
+
+describe('checkTimeZone', () => {
+  it('accepts IANA names, including UTC', () => {
+    expect(checkTimeZone('Asia/Manila')).toBe('Asia/Manila');
+    expect(checkTimeZone('UTC')).toBe('UTC');
+  });
+
+  it('rejects unknown names and offsets', () => {
+    expect(checkTimeZone('Mars/Base')).toEqual(ZONE_ERROR);
+    expect(checkTimeZone('GMT+8')).toEqual(ZONE_ERROR);
+  });
+
+  describe('without Intl.supportedValuesOf', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('imports without throwing and falls back to constructing a formatter', async () => {
+      // Intl's members aren't enumerable, so inherit them rather than spread.
+      vi.stubGlobal('Intl', Object.create(Intl, { supportedValuesOf: { value: undefined } }));
+      vi.resetModules();
+      const rules =
+        await vi.importActual<typeof import('./profile-rules.js')>('./profile-rules.js');
+      expect(rules.checkTimeZone('Asia/Manila')).toBe('Asia/Manila');
+      expect(rules.checkTimeZone('UTC')).toBe('UTC');
+      expect(rules.checkTimeZone('Mars/Base')).toEqual(ZONE_ERROR);
+      expect(rules.checkTimeZone('GMT+8')).toEqual(ZONE_ERROR);
+    });
+  });
+});

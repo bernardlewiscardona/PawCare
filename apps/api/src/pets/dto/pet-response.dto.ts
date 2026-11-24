@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { Pet } from '../../generated/prisma/client.js';
-import { SEXES, SPECIES } from './create-pet.dto.js';
+import { SEXES, SPECIES } from '@pawcare/core';
 
 const dateOnly = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : null);
 

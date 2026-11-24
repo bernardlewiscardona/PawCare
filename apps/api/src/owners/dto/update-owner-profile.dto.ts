@@ -1,9 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { MAX_INT4 } from '@pawcare/core';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { IfPresent } from '../../common/validation/if-present.js';
-
-/** Largest value of a PostgreSQL integer column, such as owners.version. */
-const MAX_INT4 = 2_147_483_647;
 
 /**
  * PATCH /v1/me. Send only the fields that change, plus the version last read. The first save

@@ -1,26 +1,27 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  PAGE_LIMIT,
+  checkPastOrToday,
+  isRuleError,
+  localDate,
+  normalizeMicrochip,
+  normalizeOptionalText,
+  normalizePetName,
+  toGrams,
+} from '@pawcare/core';
 import { AppException } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-codes.js';
-import { isRuleError } from '../common/errors/rule-error.js';
 import { type FieldErrors, validationFailed } from '../common/errors/validation.js';
 import { IdempotencyService } from '../common/idempotency/idempotency.service.js';
-import { localDate } from '../common/time/local-date.js';
 import { validateBody } from '../common/validation/validate-body.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreatePetDto } from './dto/create-pet.dto.js';
 import type { ListPetsQueryDto, PetListResponseDto } from './dto/list-pets-query.dto.js';
 import { PetResponseDto } from './dto/pet-response.dto.js';
-import {
-  checkPastOrToday,
-  normalizeMicrochip,
-  normalizeOptionalText,
-  normalizePetName,
-  toKilograms,
-} from './pet-rules.js';
 
 const IDEMPOTENCY_KEY = /^[\x21-\x7E]{1,100}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = PAGE_LIMIT.default;
 
 /** Validated pet fields, before defaults. This is also what a retry must repeat exactly. */
 interface PetInput {
@@ -197,7 +198,8 @@ function normalizePet(dto: CreatePetDto, today: string, errors: FieldErrors): Pe
     }
   }
   if (dto.weight !== undefined) {
-    take('currentWeightKg', toKilograms(dto.weight.value, dto.weight.unit));
+    const grams = toGrams(dto.weight.value, dto.weight.unit);
+    take('currentWeightKg', isRuleError(grams) ? grams : grams / 1000);
     if (errors.currentWeightKg) {
       errors.weight = errors.currentWeightKg;
       delete errors.currentWeightKg;
