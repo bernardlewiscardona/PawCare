@@ -1,4 +1,4 @@
-import type { RuleError } from './errors.js';
+import { isRuleError, type RuleError } from './errors.js';
 
 const KG_PER_LB = 0.45359237;
 const MAX_KG = 1000;
@@ -34,14 +34,9 @@ export function normalizeMicrochip(value: string): string | RuleError {
 }
 
 /**
- * A real YYYY-MM-DD calendar date from 1900 up to `today` (the owner's local date). The lower
- * bound catches typos such as 0202 for 2020.
+ * A real YYYY-MM-DD calendar date from 1900. The lower bound catches typos such as 0202 for 2020.
  */
-export function checkPastOrToday(
-  value: string,
-  today: string,
-  futureError: string,
-): string | RuleError {
+export function checkDate(value: string): string | RuleError {
   const match = ISO_DATE.exec(value);
   if (!match) return DATE_ERROR;
   const [year, month, day] = match.slice(1).map(Number);
@@ -49,8 +44,18 @@ export function checkPastOrToday(
   const date = new Date(Date.UTC(year, month - 1, day));
   const real =
     date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-  if (!real) return DATE_ERROR;
-  return value <= today ? value : { error: futureError };
+  return real ? value : DATE_ERROR;
+}
+
+/** A real date (see `checkDate`) no later than `today`, the owner's local date. */
+export function checkPastOrToday(
+  value: string,
+  today: string,
+  futureError: string,
+): string | RuleError {
+  const date = checkDate(value);
+  if (isRuleError(date)) return date;
+  return date <= today ? date : { error: futureError };
 }
 
 /**

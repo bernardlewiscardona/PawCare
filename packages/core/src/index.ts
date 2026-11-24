@@ -3,6 +3,7 @@ export type { FieldErrors, RuleError } from './errors.js';
 export { localDate } from './local-date.js';
 export { checkTimeZone, normalizeDisplayName, normalizePhone } from './profile-rules.js';
 export {
+  checkDate,
   checkPastOrToday,
   normalizeMicrochip,
   normalizeOptionalText,
@@ -24,3 +25,9 @@ export {
   normalizeProviderName,
 } from './medical-rules.js';
 export { createUuidV7 } from './uuidv7.js';
+export {
+  checkNextDueDate,
+  checkVaccinationDate,
+  normalizeBatchLabel,
+  normalizeVaccineName,
+} from './vaccine-rules.js';
