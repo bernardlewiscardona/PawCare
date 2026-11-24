@@ -128,11 +128,22 @@ You don't need the database or the API to run the app, so after first-time setup
 
 ### How the phone database works
 
-The owner profile and pets are stored in an SQLCipher-encrypted SQLite database (`pawcare.db`) on the phone. The key is generated on first launch and kept in the device's secure storage (`expo-secure-store`), and Android backup is off (`android.allowBackup: false`). Code reaches the data only through `apps/mobile/src/data`, and its schema is the append-only migrations in `apps/mobile/src/data/migrations`.
+The owner profile and pets are stored in an SQLCipher-encrypted SQLite database (`pawcare.db`) on the phone. The key is generated on first launch and kept in the device's secure storage (`expo-secure-store`). OS cloud backup is off (`android.allowBackup: false`); a device-to-device transfer may copy the encrypted file, but not its key (SecureStore values can't be decrypted on another device), so the app lands on "key-missing" and Start fresh. Code reaches the data only through `apps/mobile/src/data`, and its schema is the append-only migrations in `apps/mobile/src/data/migrations`.
 
 If the database can't open, the app shows a state screen (encryption unavailable, newer app data, missing key, or failed) instead of the app. "Start fresh" moves the old database files aside and never deletes them.
 
-**Encryption needs a development build.** Expo Go doesn't include SQLCipher, so in Expo Go the database is **not encrypted** and the app shows the banner "Development data, not encrypted". That is allowed in development only. To test encryption, make a development build (`pnpm --filter mobile exec expo run:android`, or `eas build --profile development`) or a release build. The Developer tools screen shows the database status. Verification on a real Android device is still pending.
+**Encryption needs a development build.** Expo Go doesn't include SQLCipher, so in Expo Go the database is **not encrypted** and the app shows the banner "Development data, not encrypted". That is allowed in development only. To test encryption, make a development build (`pnpm --filter mobile exec expo run:android`, or `eas build --profile development`) or a release build. The Developer tools screen shows the database status.
+
+#### Device check (pending)
+
+Verification on a real Android device is still pending. On a development build (`pnpm --filter mobile exec expo run:android`, debuggable), check and record in the PR:
+
+1. Developer tools (long-press the logo on Welcome) shows state `ready`, `Encrypted: true` and `User version: 1`.
+2. Developer tools "Zone source" shows `native` or `fallback`. Record which: `fallback` means a time-zone list has to ship in `packages/core`.
+3. Developer tools "Today in Manila" reads a date as `YYYY-MM-DD`.
+4. `adb exec-out run-as com.pawcare.app cat databases/pawcare.db > /tmp/pawcare.db` (or the path `expo-sqlite` uses; find it with `run-as com.pawcare.app ls -R`), then `sqlite3 /tmp/pawcare.db 'select * from sqlite_master'` fails with `file is not a database`.
+5. In Expo Go (`pnpm dev:mobile`), the warning banner shows and the readout says `Encrypted: false`.
+6. The splash hands over without a jump, and the existing screens still work on the demo store.
 
 ### Run on the Android emulator (Android Studio)
 

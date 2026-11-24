@@ -579,6 +579,9 @@ Open sequence (the order matters):
   debuggable). Record the results in the PR description:
   1. Developer tools shows `ready`, `encrypted: true`, `userVersion: 1`, the zone source, and
      today's Manila date.
+     - "Zone source" shows `native` or `fallback`. Record which: `fallback` means shipping a
+       zone list in core.
+     - "Today in Manila" reads `YYYY-MM-DD`.
   2. `adb exec-out run-as com.pawcare.app cat databases/pawcare.db > /tmp/pawcare.db`, or the
      path `expo-sqlite` uses (find it with `run-as com.pawcare.app ls -R`). Then
      `sqlite3 /tmp/pawcare.db 'select * from sqlite_master'` fails with `file is not a database`.

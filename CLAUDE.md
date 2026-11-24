@@ -57,6 +57,8 @@ Don't mark a story Done while an integration adapter it lists (e.g. a reminder s
 
 ## Engineering rules (shared requirements, condensed)
 
+In release 1 these rules apply to the on-phone data layer (`apps/mobile/src/data`): validation runs in its repositories (server-side validation returns with the API), creates need no client request IDs because a local write either commits or throws (idempotency returns with the server and the upload), and "encrypt at rest" means SQLCipher.
+
 - **Authorization:** sign-in is postponed until AUTH-01 (Google). On the phone there is one owner, and every repository still scopes by `owner_id`. In the parked API, the owner comes from `@CurrentOwner()`, resolved by the global guard from the dev-only `X-Dev-Owner` header (`AUTH_MODE=dev`); see `apps/api/AGENTS.md`. Check ownership server-side on every request, including nested resources and attachments. Inaccessible = generic not-found; leak nothing (names, counts, existence).
 - **Idempotency:** creates and transactional actions accept a client request ID; retries create at most one record.
 - **Concurrency:** every editable resource has a `version`; stale writes return a conflict with reload/review, never silent overwrite.
