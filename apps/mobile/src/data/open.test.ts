@@ -273,6 +273,20 @@ describe('openPawCareData', () => {
     expect(keys.size).toBe(0);
   });
 
+  it('starts fresh with a rollback journal: retires it with the database', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const live = [DB_NAME, `${DB_NAME}-journal`];
+    const { env, files } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: live });
+    env.connect.mockRejectedValueOnce(new Error('corrupt'));
+
+    const failed = expectState(await openPawCareData(env), 'failed');
+    expectState(await failed.startFresh(), 'ready');
+
+    expect(files.has(`pawcare-${STAMP}.retired.db`)).toBe(true);
+    expect(files.has(`pawcare-${STAMP}.retired.db-journal`)).toBe(true);
+    expect(files.has(`${DB_NAME}-journal`)).toBe(false);
+  });
+
   it('starts fresh from key-missing: renames the old file and opens a new one', async () => {
     const { env, keys, files } = fakeEnv({ files: [DB_NAME] });
     const missing = expectState(await openPawCareData(env), 'key-missing');
