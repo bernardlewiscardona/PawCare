@@ -178,6 +178,7 @@ export async function openPawCareData(env: OpenEnv): Promise<OpenResult> {
  * copied side by side under one stamp, so the retired database stays readable. Nothing is deleted.
  */
 async function startFresh(env: OpenEnv): Promise<OpenResult> {
+  const moved: { from: string; to: string }[] = [];
   try {
     const at = stamp(env.now());
     const retiredKey = `${KEY_NAME}-${at}`;
@@ -191,14 +192,21 @@ async function startFresh(env: OpenEnv): Promise<OpenResult> {
     }
     if ((await env.keys.get(retiredKey)) !== null) throw new Error('Retired name taken');
 
-    for (const { from, to } of moves) {
-      if (await env.files.exists(from)) await env.files.rename(from, to);
+    for (const move of moves) {
+      if (await env.files.exists(move.from)) {
+        await env.files.rename(move.from, move.to);
+        moved.push(move);
+      }
     }
     const oldKey = await env.keys.get(KEY_NAME);
     if (oldKey !== null) await env.keys.set(retiredKey, oldKey);
     // Only after the old key is safely copied.
     await env.keys.set(KEY_NAME, newKey(env));
   } catch (error) {
+    // Put the files back together, so a database is never split from its -wal/-shm or its key.
+    for (const { from, to } of moved.reverse()) {
+      await env.files.rename(to, from).catch(() => undefined);
+    }
     logFailure('start-fresh', error);
     return failed(env);
   }

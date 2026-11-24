@@ -246,6 +246,21 @@ describe('openPawCareData', () => {
     expect(env.files.rename).toHaveBeenCalledTimes(3);
   });
 
+  it('puts the files back when start fresh fails part-way, keeping the old key', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const live = [DB_NAME, `${DB_NAME}-wal`, `${DB_NAME}-shm`];
+    const { env, keys, files } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: live });
+    env.connect.mockRejectedValueOnce(new Error('corrupt'));
+    const failed = expectState(await openPawCareData(env), 'failed');
+
+    env.keys.set.mockRejectedValueOnce(new Error('keystore busy'));
+    expectState(await failed.startFresh(), 'failed');
+
+    expect(warn).toHaveBeenLastCalledWith('[data] open failed at start-fresh:', 'Error');
+    expect([...files].sort()).toEqual([...live].sort());
+    expect(keys.get(KEY_NAME)).toBe(K1);
+  });
+
   it('refuses to start fresh over an existing retired name, moving nothing', async () => {
     warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const taken = `pawcare-${STAMP}.retired.db-wal`;
