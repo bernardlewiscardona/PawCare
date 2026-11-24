@@ -13,6 +13,11 @@ export const ErrorCode = {
   IDEMPOTENCY_KEY_REUSED: 'IDEMPOTENCY_KEY_REUSED',
   /** 409: the owner must finish profile setup (PF-01) first, e.g. before adding a pet. */
   PROFILE_SETUP_REQUIRED: 'PROFILE_SETUP_REQUIRED',
+  /**
+   * A warning the owner can override: `details.warnings` names each field and its message, and
+   * the caller resends with the named `confirm…` flag (MR-01: `confirmBeforeBirth`).
+   */
+  CONFIRMATION_REQUIRED: 'CONFIRMATION_REQUIRED',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
