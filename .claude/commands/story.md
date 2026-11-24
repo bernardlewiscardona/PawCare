@@ -15,7 +15,7 @@ Then reply with:
 - **Summary** — the user story in one sentence
 - **Readiness** — Ready / Not ready, with reasons (unmet dependencies, open decisions)
 - **Test plan** — one or more test cases per Given/When/Then and per edge case, plus the shared-requirement tests that apply (cross-owner access, idempotent retry, stale version, time zone, etc.)
-- **Data/API sketch** — entities, fields with limits, states and transitions, endpoints
+- **Data sketch** — entities, fields with limits, states and transitions, and the `src/data` repository methods (the API is parked)
 - **Questions** — anything ambiguous in the spec
 
 Do not write implementation code in this command.

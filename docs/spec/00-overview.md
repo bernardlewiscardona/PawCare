@@ -11,6 +11,8 @@ The ticket IDs below are proposed backlog identifiers, not existing Jira or Noti
 
 ### Working assumptions
 
+> **Superseded 24 Nov 2026 (`docs/decisions.md`, "Release 1 is local-first").** Release 1 keeps data in an encrypted database on the owner's phone, so the connectivity assumption below ("requires connectivity"), the deferral of data export (moving phones uses an encrypted export file, LOCAL-02) and authentication as a prerequisite (sign-in, AUTH-01, comes later and uploads the phone data) no longer hold. The Notion text below is unchanged.
+
 - One authenticated owner account can manage multiple pets. Shared ownership, transfers, and caregiver invitations are deferred.
 - Owners manually maintain health records. These are labeled owner-entered and are not represented as veterinarian-verified records. PawCare does not diagnose, prescribe, or calculate doses.
 - Inventory means household food, medication, and pet supplies; it excludes clinic stock, purchasing, sales, and financial accounting.

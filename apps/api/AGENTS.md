@@ -44,3 +44,7 @@ Nest's packages are ESM only, and this project is ESM too: relative imports end 
 - A create that judges dates against the owner's "today" needs a finished profile: answer `409 PROFILE_SETUP_REQUIRED` while `profileCompletedAt` is null.
 - List endpoints return `{ data, nextCursor }`: `limit` 1–100 (default 20) and `cursor` = the last ID of the previous page; order by `id` (UUIDv7, so creation order).
 - A malformed ID in a path is answered as `404 NOT_FOUND`, the same as a missing or another owner's resource.
+
+## PawCare: the API is parked (LOCAL-01)
+
+Release 1 is local-first, so this API is parked: it keeps building and its tests keep passing in CI, but it isn't deployed and feature stories don't change it. Rules and constants (error codes, `RuleError`, field errors, validation and date rules) come from `@pawcare/core`, and `src/common/errors/error-codes.ts` re-exports `ErrorCode`, so no code is renamed. After editing core, run `pnpm --filter @pawcare/core build` before the API's tests and typecheck.
