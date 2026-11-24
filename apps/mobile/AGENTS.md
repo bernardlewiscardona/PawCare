@@ -54,7 +54,7 @@ PawCare's data lives on the phone, in an SQLCipher-encrypted SQLite database beh
 - `CONFIRMATION_REQUIRED` is a warning the owner can override: show `details.warnings` per field, and on "Save anyway" resend the same input with the named `confirm…` flag (first use: `confirmBeforeBirth`). Field errors always come before warnings.
 - `vaccines.create`, `vaccines.get` and `vaccines.listForPet` (VC-01); watch `['care_records', 'vaccinations', 'vaccine_due_items']`. `nextDue` is `null` when no date was entered: show "No next date recorded" and never infer one. `nextDue.overdue` is worked out when read (due date before the owner's today), so re-read when the screen regains focus. A create can return both warnings at once (`confirmSimilar`, `confirmBeforeBirth`); resend with every flag the owner confirmed.
 - Steps shared by every care-record kind (owner's active pet, owner's today, the `care_records` insert, the before-birth text) live in `src/data/care-records/`; new record kinds use them.
-- New migrations check dates with `CHECK (date(x) IS x)`: `date()` returns NULL for e.g. `2026-13-01`, and a `CHECK` that is NULL passes, so `= x` lets it through (0001 and 0003 still use `=`).
+- New migrations check dates with `CHECK (date(x) IS x)`: `date()` returns NULL for e.g. `2026-13-01`, and a `CHECK` that is NULL passes, so `= x` lets it through (0001 and 0003 still use `=`; tightening them is LOCAL-03).
 - Migrations in `src/data/migrations/` are append-only, numbered, and tracked by `PRAGMA user_version`. Never edit a released migration; add a new one.
 - SQL uses bound parameters only. Never build SQL by string concatenation with user input.
 - Tests use `openTestData()` from `src/data/testing` (over `node:sqlite`), not a mocked database.

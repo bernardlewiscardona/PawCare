@@ -19,7 +19,7 @@ The whole ERD is implemented in PostgreSQL (`apps/api/prisma/schema.prisma` plus
 | --- | --- |
 | `uuidv7()` default | `TEXT` UUIDv7 created by the app; `CHECK (length(id) = 36)` |
 | `timestamptz` | `TEXT` ISO-8601 UTC with milliseconds |
-| `date` | `TEXT` `YYYY-MM-DD` with `CHECK (date(x) = x)` |
+| `date` | `TEXT` `YYYY-MM-DD` with `CHECK (date(x) IS x)` (`= x` lets `2026-13-01` through: `date()` returns NULL and a NULL `CHECK` passes) |
 | `decimal` kg | `INTEGER` grams |
 | enums | `TEXT` with `CHECK (x IN (…))` |
 | `boolean` | `INTEGER` 0/1 with `CHECK` |
