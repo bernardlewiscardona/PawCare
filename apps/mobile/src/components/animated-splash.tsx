@@ -2,6 +2,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
 import { color as palette } from '@/theme/tokens';
+import { MAX_HOLD_MS, isHolding } from './splash-hold';
 import splashLogo from '../../assets/splash-icon.png';
 
 /** Must match `imageWidth` of the expo-splash-screen plugin in app.json. */
@@ -37,12 +38,13 @@ export function AnimatedSplash({ hold = false }: { hold?: boolean }) {
   const [done, setDone] = useState(false);
   const started = useRef(false);
   const holdRef = useRef(hold);
+  const [mountedAt] = useState(() => Date.now());
   const logoLoaded = useRef(false);
 
   // Takes over once the logo has been drawn (so the native splash never uncovers a blank
   // canvas), or after a safety timeout so the splash can never stay up.
   const start = useCallback(async () => {
-    if (started.current || holdRef.current) return;
+    if (started.current || isHolding(holdRef.current, Date.now() - mountedAt)) return;
     started.current = true;
     // Read once before the first frame; the motion hook's first value is only a guess.
     const reduced = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
@@ -78,6 +80,12 @@ export function AnimatedSplash({ hold = false }: { hold?: boolean }) {
     const fallback = setTimeout(() => void start(), SAFETY_MS);
     return () => clearTimeout(fallback);
   }, [hold, start]);
+
+  // A stuck open must not keep the splash up forever: take over after MAX_HOLD_MS regardless.
+  useEffect(() => {
+    const limit = setTimeout(() => void start(), MAX_HOLD_MS);
+    return () => clearTimeout(limit);
+  }, [start]);
 
   if (done) return null;
 
