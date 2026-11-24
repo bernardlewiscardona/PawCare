@@ -8,14 +8,15 @@ AP,Owner appointment diary,Epic,,High,Proposed,,docs/spec/epics/AP.md
 RM,Reminders,Epic,,High,Proposed,,docs/spec/epics/RM.md
 IN,Household inventory,Epic,,Medium,Proposed,,docs/spec/epics/IN.md
 SETUP-01,Initialize PawCare repository and development environment,Task,SETUP,High,In Review,,docs/spec/epics/SETUP.md
-FN-01,Enforce owner access boundaries,User Story,FN,High,In Progress,SETUP-01,docs/spec/epics/FN.md
+FN-01,Enforce owner access boundaries,User Story,FN,High,In Review,SETUP-01,docs/spec/epics/FN.md
 AUTH-01,Sign in with Google and upload phone data,Task,FN,High,Proposed,FN-01,docs/spec/epics/FN.md
 FN-02,Request permanent account and data deletion,User Story,FN,High,Proposed,all resource stories (release gate: retention policy),docs/spec/epics/FN.md
-PF-01,Create and edit the owner profile,User Story,PF,High,In Progress,FN-01 LOCAL-01,docs/spec/epics/PF.md
+PF-01,Create and edit the owner profile,User Story,PF,High,Done,FN-01 LOCAL-01,docs/spec/epics/PF.md
 PF-01-APP,Owner profile screens on the phone data layer,Task,PF,High,Proposed,PF-01 LOCAL-01,docs/spec/epics/PF.md
-PF-02,Register a pet,User Story,PF,High,In Progress,FN-01 LOCAL-01,docs/spec/epics/PF.md
+PF-02,Register a pet,User Story,PF,High,Done,FN-01 LOCAL-01,docs/spec/epics/PF.md
 PF-02-APP,Pet registration screens on the phone data layer,Task,PF,High,Proposed,PF-02 LOCAL-01,docs/spec/epics/PF.md
-PF-03,Select and edit pet profiles,User Story,PF,High,Proposed,PF-02,docs/spec/epics/PF.md
+PF-03,Select and edit pet profiles,User Story,PF,High,In Progress,PF-02,docs/spec/epics/PF.md
+PF-03-APP,Pet switcher and edit screens on the phone data layer,Task,PF,High,Proposed,PF-03 LOCAL-01,docs/spec/epics/PF.md
 PF-04,Archive and restore a pet,User Story,PF,Medium,Proposed,PF-02 AP-03 RM-02,docs/spec/epics/PF.md
 MR-01,Record a medical event,User Story,MR,High,Proposed,PF-02,docs/spec/epics/MR.md
 MR-02,Attach medical documents,User Story,MR,High,Proposed,FN-01 MR-01,docs/spec/epics/MR.md
@@ -38,6 +39,6 @@ IN-01,Register household pet supplies,User Story,IN,Medium,Proposed,FN-01 PF-02,
 IN-02,Add stock and track expiry batches,User Story,IN,Medium,Proposed,IN-01,docs/spec/epics/IN.md
 IN-03,"Record use, disposal, and stock corrections",User Story,IN,Medium,Proposed,IN-02,docs/spec/epics/IN.md
 IN-04,Configure low-stock and expiry alerts,User Story,IN,Medium,Proposed,IN-01 IN-02 IN-03 RM-02,docs/spec/epics/IN.md
-LOCAL-01,Local-first foundation on the phone,Task,FN,High,In Review,PF-02,docs/superpowers/specs/2026-11-24-local-first-foundation-design.md
+LOCAL-01,Local-first foundation on the phone,Task,FN,High,Done,PF-02,docs/superpowers/specs/2026-11-24-local-first-foundation-design.md
 LOCAL-01-IOS,Verify the phone database on iOS,Task,FN,Medium,Proposed,LOCAL-01,docs/superpowers/specs/2026-11-24-local-first-foundation-design.md
 LOCAL-02,Export and import data to move phones,Task,FN,High,Proposed,LOCAL-01,docs/spec/00-overview.md
