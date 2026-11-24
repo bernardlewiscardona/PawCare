@@ -154,7 +154,6 @@ function parsePageQuery(query: { limit?: number; cursor?: string }) {
 export function createPetRepository(db: Database, deps: DataDeps): PetRepository {
   return {
     async create(rawInput) {
-      const dto = parseCreatePetInput(rawInput);
       return db.write(['pets', 'change_log'], async (c) => {
         const owner = await c.get<{
           id: string;
@@ -164,6 +163,7 @@ export function createPetRepository(db: Database, deps: DataDeps): PetRepository
         if (!owner || owner.profile_completed_at === null) {
           throw profileSetupRequired(SETUP_MESSAGE);
         }
+        const dto = parseCreatePetInput(rawInput);
         const today = localDate(owner.time_zone, deps.now());
         const input = normalizePet(dto, today);
         const id = deps.newId();

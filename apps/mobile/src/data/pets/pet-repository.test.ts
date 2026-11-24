@@ -138,6 +138,15 @@ describe('pet repository: create', () => {
     );
   });
 
+  it('checks setup before validating the body', async () => {
+    const { pets, db } = await openTestData();
+    const e = await rejection(pets.create({ name: '', species: 'DRAGON' } as never));
+    expect(e.code).toBe('PROFILE_SETUP_REQUIRED');
+    expect((await db.read((c) => c.get<{ n: number }>('SELECT count(*) AS n FROM pets')))!.n).toBe(
+      0,
+    );
+  });
+
   it('allows duplicate names', async () => {
     const { pets } = await ready();
     const a = await pets.create({ name: 'Mochi', species: 'CAT' });
