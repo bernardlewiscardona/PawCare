@@ -1,11 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SEXES, SPECIES, WEIGHT_UNITS } from '@pawcare/core';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsNumber, IsString, ValidateNested } from 'class-validator';
 import { IfPresent } from '../../common/validation/if-present.js';
-
-export const SPECIES = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'] as const;
-export const SEXES = ['MALE', 'FEMALE', 'UNKNOWN'] as const;
-export const WEIGHT_UNITS = ['KG', 'LB'] as const;
 
 export class WeightInputDto {
   @ApiProperty({ example: 4.2 })

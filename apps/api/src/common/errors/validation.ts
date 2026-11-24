@@ -1,10 +1,10 @@
 import { HttpStatus } from '@nestjs/common';
+import type { FieldErrors } from '@pawcare/core';
 import type { ValidationError } from 'class-validator';
 import { AppException } from './app.exception.js';
 import { ErrorCode } from './error-codes.js';
 
-/** Messages per request field, e.g. { phone: ['Enter the number with its country code…'] }. */
-export type FieldErrors = Record<string, string[]>;
+export type { FieldErrors };
 
 /**
  * The 400 VALIDATION_FAILED error. details.errors is the flat list older clients read;

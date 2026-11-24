@@ -1,4 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  type RuleError,
+  checkTimeZone,
+  isRuleError,
+  normalizeDisplayName,
+  normalizePhone,
+} from '@pawcare/core';
 import { AppException } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-codes.js';
 import { type FieldErrors, validationFailed } from '../common/errors/validation.js';
@@ -6,8 +13,6 @@ import type { Owner } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OwnerResponseDto } from './dto/owner-response.dto.js';
 import type { UpdateOwnerProfileDto } from './dto/update-owner-profile.dto.js';
-import { type RuleError, isRuleError } from '../common/errors/rule-error.js';
-import { checkTimeZone, normalizeDisplayName, normalizePhone } from './profile-rules.js';
 
 const PROFILE_FIELDS = ['displayName', 'phone', 'timeZone', 'weightUnit'] as const;
 type ProfileField = (typeof PROFILE_FIELDS)[number];

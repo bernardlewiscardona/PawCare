@@ -5,7 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { localDate } from '../src/common/time/local-date.js';
+import { localDate } from '@pawcare/core';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { createApp } from './support/create-app.js';
 

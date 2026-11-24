@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/*
 
 # Lifecycle scripts of dependencies are off by default in pnpm 10.
 # Prisma downloads its engines on first CLI use, so its install scripts aren't needed;

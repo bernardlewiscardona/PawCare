@@ -1,15 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PAGE_LIMIT } from '@pawcare/core';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { PetResponseDto } from './pet-response.dto.js';
 
 export class ListPetsQueryDto {
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({
+    default: PAGE_LIMIT.default,
+    minimum: PAGE_LIMIT.min,
+    maximum: PAGE_LIMIT.max,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(1)
-  @Max(100)
+  @Min(PAGE_LIMIT.min)
+  @Max(PAGE_LIMIT.max)
   limit?: number;
 
   @ApiPropertyOptional({ format: 'uuid', description: 'nextCursor from the previous page' })
