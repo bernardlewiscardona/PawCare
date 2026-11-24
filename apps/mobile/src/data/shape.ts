@@ -5,6 +5,7 @@ export const REQUIRED = 'This field is required.';
 export const INVALID = 'Enter a valid value.';
 export const CHOOSE_SPECIES = 'Choose a species.';
 export const CHOOSE_SEX = 'Choose a sex.';
+export const CHOOSE_EVENT_TYPE = 'Choose an event type.';
 export const CHOOSE_UNIT = 'Choose kg or lb.';
 export const WEIGHT_NUMBER = 'Enter a weight as a number.';
 export const VERSION = 'Send the version you last read.';

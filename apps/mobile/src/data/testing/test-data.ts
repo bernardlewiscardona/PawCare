@@ -9,6 +9,7 @@ import {
   type OwnerRepository,
 } from '../owner/owner-repository';
 import { createPetRepository, type PetRepository } from '../pets/pet-repository';
+import { createMedicalRepository, type MedicalRepository } from '../medical/medical-repository';
 import { openNodeConnection } from './node-sqlite';
 
 export async function openTestData(options: { now?: Date } = {}): Promise<{
@@ -16,6 +17,7 @@ export async function openTestData(options: { now?: Date } = {}): Promise<{
   deps: DataDeps;
   owner: OwnerRepository;
   pets: PetRepository;
+  medical: MedicalRepository;
   ownerId: string;
 }> {
   const db = createDatabase(openNodeConnection());
@@ -31,6 +33,7 @@ export async function openTestData(options: { now?: Date } = {}): Promise<{
     deps,
     owner: createOwnerRepository(db, deps),
     pets: createPetRepository(db, deps, ownerId),
+    medical: createMedicalRepository(db, deps, ownerId),
     ownerId,
   };
 }
