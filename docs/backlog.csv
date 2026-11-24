@@ -15,7 +15,7 @@ PF-01,Create and edit the owner profile,User Story,PF,High,Done,FN-01 LOCAL-01,d
 PF-01-APP,Owner profile screens on the phone data layer,Task,PF,High,Proposed,PF-01 LOCAL-01,docs/spec/epics/PF.md
 PF-02,Register a pet,User Story,PF,High,Done,FN-01 LOCAL-01,docs/spec/epics/PF.md
 PF-02-APP,Pet registration screens on the phone data layer,Task,PF,High,Proposed,PF-02 LOCAL-01,docs/spec/epics/PF.md
-PF-03,Select and edit pet profiles,User Story,PF,High,In Progress,PF-02,docs/spec/epics/PF.md
+PF-03,Select and edit pet profiles,User Story,PF,High,Done,PF-02,docs/spec/epics/PF.md
 PF-03-APP,Pet switcher and edit screens on the phone data layer,Task,PF,High,Proposed,PF-03 LOCAL-01,docs/spec/epics/PF.md
 PF-04,Archive and restore a pet,User Story,PF,Medium,Proposed,PF-02 AP-03 RM-02,docs/spec/epics/PF.md
 MR-01,Record a medical event,User Story,MR,High,Proposed,PF-02,docs/spec/epics/MR.md
