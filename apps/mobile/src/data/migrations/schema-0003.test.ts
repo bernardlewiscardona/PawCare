@@ -196,7 +196,7 @@ describe('upgrade from version 2', () => {
     }
     const before = await old.all('SELECT * FROM change_log ORDER BY id');
 
-    expect(await migrate(createDatabase(old))).toEqual({ from: 2, to: 3 });
+    expect(await migrate(createDatabase(old))).toEqual({ from: 2, to: 4 });
     expect(await old.all('SELECT * FROM change_log ORDER BY id')).toEqual(before);
     await expect(old.run('DELETE FROM change_log')).rejects.toThrow(/append-only/);
   });
