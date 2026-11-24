@@ -7,11 +7,17 @@ import {
   normalizeVaccineName,
   type FieldErrors,
 } from '@pawcare/core';
-import { insertCareRecord, ownerToday, readActivePet } from '../care-records/care-record';
+import {
+  beforeBirthWarning,
+  insertCareRecord,
+  ownerToday,
+  readActivePet,
+  type ActivePet,
+} from '../care-records/care-record';
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { DataDeps } from '../deps';
-import { notFound, validationFailed } from '../errors';
+import { confirmationRequired, notFound, validationFailed } from '../errors';
 import { UUID } from '../paging';
 import type { SqlConnection } from '../sql';
 import type { CreateVaccinationInput, Vaccination } from '../types';
@@ -114,6 +120,38 @@ function normalizeVaccination(dto: CreateVaccinationInput, today: string): Vacci
   return fields;
 }
 
+/**
+ * "Save anyway?" warnings, once every field is valid: a vaccine with the same name (ignoring case
+ * and surrounding spaces) already recorded for this pet on this date, and a date before birth.
+ * Each is dropped when its flag is set; any left are thrown together.
+ */
+async function checkWarnings(
+  c: SqlConnection,
+  ownerId: string,
+  pet: ActivePet,
+  input: VaccinationFields,
+  dto: CreateVaccinationInput,
+): Promise<void> {
+  const warnings: FieldErrors = {};
+  if (dto.confirmSimilar !== true) {
+    const sameDay = await c.all<{ vaccine_name: string }>(
+      `SELECT v.vaccine_name FROM vaccinations v
+       JOIN care_records r ON r.owner_id = v.owner_id AND r.id = v.record_id
+       WHERE v.owner_id = ? AND v.pet_id = ? AND v.administered_on = ? AND r.status = 'ACTIVE'`,
+      [ownerId, pet.id, input.administeredOn],
+    );
+    const key = input.vaccineName.trim().toLowerCase();
+    if (sameDay.some((row) => row.vaccine_name.trim().toLowerCase() === key)) {
+      warnings.vaccineName = [
+        `You already recorded ${input.vaccineName} for ${pet.name} on this date. Save anyway?`,
+      ];
+    }
+  }
+  const birth = beforeBirthWarning(pet, input.administeredOn);
+  if (birth !== null && dto.confirmBeforeBirth !== true) warnings.administeredOn = [birth];
+  if (Object.keys(warnings).length > 0) throw confirmationRequired(warnings);
+}
+
 async function readVaccination(c: SqlConnection, ownerId: string, id: string) {
   return c.get<VaccinationRow>(`${SELECT_VACCINATION} WHERE r.owner_id = ? AND r.id = ?`, [
     ownerId,
@@ -136,6 +174,7 @@ export function createVaccineRepository(
           if (!pet) throw notFound();
           const today = await ownerToday(c, ownerId, deps);
           const input = normalizeVaccination(dto, today);
+          await checkWarnings(c, ownerId, pet, input, dto);
 
           const id = deps.newId();
           const at = deps.now().toISOString();
