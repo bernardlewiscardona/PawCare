@@ -17,7 +17,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.pawcare.app"
+      "package": "com.pawcare.app",
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +35,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#F9DCE8"
         }
-      ]
+      ],
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
+      "expo-secure-store"
     ],
     "scheme": "pawcare"
   }
