@@ -11,6 +11,9 @@ export type {
   MedicalEventType,
   CreateMedicalEventInput,
   MedicalEventPage,
+  Vaccination,
+  CreateVaccinationInput,
+  VaccinationPage,
 } from './types';
 export type { OpenResult, PawCareData } from './open';
 export type { TableName } from './database';
