@@ -4,6 +4,7 @@ import type { DataDeps } from './deps';
 import { MigrationTooNewError, migrate } from './migrations';
 import { createOwnerRepository, ensureOwner, type OwnerRepository } from './owner/owner-repository';
 import { createPetRepository, type PetRepository } from './pets/pet-repository';
+import { createMedicalRepository, type MedicalRepository } from './medical/medical-repository';
 import type { SqlConnection } from './sql';
 
 export const DB_NAME = 'pawcare.db';
@@ -35,6 +36,7 @@ export interface OpenEnv {
 export interface PawCareData {
   owner: OwnerRepository;
   pets: PetRepository;
+  medical: MedicalRepository;
   subscribe: Database['subscribe'];
   close(): Promise<void>;
 }
@@ -176,6 +178,7 @@ export async function openPawCareData(env: OpenEnv): Promise<OpenResult> {
       data: {
         owner: createOwnerRepository(db, deps),
         pets: createPetRepository(db, deps, ownerId),
+        medical: createMedicalRepository(db, deps, ownerId),
         subscribe: db.subscribe,
         // Queued, so work already started finishes before the connection closes.
         close: () => db.read(() => open.close()),

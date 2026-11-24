@@ -67,3 +67,36 @@ export interface PetPage {
   data: Pet[];
   nextCursor: string | null;
 }
+
+export type MedicalEventType = 'VISIT' | 'DIAGNOSIS' | 'PROCEDURE' | 'ALLERGY' | 'GENERAL_NOTE';
+
+/** An owner-entered medical event (MR-01): a care record of kind MEDICAL plus its details. */
+export interface MedicalEvent {
+  id: string;
+  petId: string;
+  eventType: MedicalEventType;
+  title: string;
+  /** Date only, `YYYY-MM-DD`; no time is invented. */
+  occurrenceDate: string;
+  notes: string | null;
+  providerName: string | null;
+  status: 'ACTIVE' | 'VOIDED';
+  /** Always shown as "Owner-entered", never as verified. */
+  provenance: 'OWNER_ENTERED';
+  voidReason: string | null;
+  voidedAt: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMedicalEventInput {
+  petId: string;
+  eventType: MedicalEventType;
+  title: string;
+  occurrenceDate: string;
+  notes?: string;
+  providerName?: string;
+  /** Set after the owner confirms a date before the pet's birth date. */
+  confirmBeforeBirth?: boolean;
+}
