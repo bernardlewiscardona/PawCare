@@ -84,11 +84,25 @@ async function closeQuietly(connection: SqlConnection | undefined): Promise<void
   }
 }
 
+/**
+ * The Start fresh or Try again that is running, if any. There is one database, so a second call
+ * while one runs (a double tap, a stale alert) joins it instead of racing it on the renames and
+ * keys. Shared by both actions, since a retry would otherwise open the file mid-rename.
+ */
+let recovery: Promise<OpenResult> | undefined;
+
+function singleFlight(run: () => Promise<OpenResult>): Promise<OpenResult> {
+  recovery ??= run().finally(() => {
+    recovery = undefined;
+  });
+  return recovery;
+}
+
 function failed(env: OpenEnv): OpenResult {
   return {
     state: 'failed',
-    startFresh: () => startFresh(env),
-    retry: () => openPawCareData(env),
+    startFresh: () => singleFlight(() => startFresh(env)),
+    retry: () => singleFlight(() => openPawCareData(env)),
   };
 }
 
@@ -105,7 +119,7 @@ export async function openPawCareData(env: OpenEnv): Promise<OpenResult> {
     if (encrypted) {
       key = await env.keys.get(KEY_NAME);
       if (key === null && (await env.files.exists(DB_NAME))) {
-        return { state: 'key-missing', startFresh: () => startFresh(env) };
+        return { state: 'key-missing', startFresh: () => singleFlight(() => startFresh(env)) };
       }
       if (key === null) {
         key = newKey(env);
@@ -193,18 +207,22 @@ async function startFresh(env: OpenEnv): Promise<OpenResult> {
     }
     if ((await env.keys.get(retiredKey)) !== null) throw new Error('Retired name taken');
 
+    // Copy the key first: if the app dies after the renames, the retired files still have it.
+    // On a later failure the copy stays (nothing is deleted) and the files go back beside the
+    // unchanged current key.
+    const oldKey = await env.keys.get(KEY_NAME);
+    if (oldKey !== null) await env.keys.set(retiredKey, oldKey);
     for (const move of moves) {
       if (await env.files.exists(move.from)) {
         await env.files.rename(move.from, move.to);
         moved.push(move);
       }
     }
-    const oldKey = await env.keys.get(KEY_NAME);
-    if (oldKey !== null) await env.keys.set(retiredKey, oldKey);
-    // Only after the old key is safely copied.
+    // Only after the old key is safely copied and the files are out of the way.
     await env.keys.set(KEY_NAME, newKey(env));
   } catch (error) {
-    // Put the files back together, so a database is never split from its -wal/-shm or its key.
+    // Put the files back together, so a database is never split from its -journal/-wal/-shm or
+    // its key.
     for (const { from, to } of moved.reverse()) {
       await env.files.rename(to, from).catch(() => undefined);
     }

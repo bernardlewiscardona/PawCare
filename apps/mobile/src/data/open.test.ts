@@ -253,12 +253,19 @@ describe('openPawCareData', () => {
     env.connect.mockRejectedValueOnce(new Error('corrupt'));
     const failed = expectState(await openPawCareData(env), 'failed');
 
-    env.keys.set.mockRejectedValueOnce(new Error('keystore busy'));
+    // The retired key copy succeeds; writing the new key, after the renames, fails.
+    env.keys.set
+      .mockImplementationOnce(async (name: string, value: string) => {
+        keys.set(name, value);
+      })
+      .mockRejectedValueOnce(new Error('keystore busy'));
     expectState(await failed.startFresh(), 'failed');
 
     expect(warn).toHaveBeenLastCalledWith('[data] open failed at start-fresh:', 'Error');
+    expect(env.files.rename).toHaveBeenCalledTimes(6); // three out, three back
     expect([...files].sort()).toEqual([...live].sort());
     expect(keys.get(KEY_NAME)).toBe(K1);
+    expect(keys.get(`pawcare-db-key-${STAMP}`)).toBe(K1);
   });
 
   it('refuses to start fresh over an existing retired name, moving nothing', async () => {
@@ -285,6 +292,72 @@ describe('openPawCareData', () => {
     expect(files.has(`pawcare-${STAMP}.retired.db`)).toBe(true);
     expect(files.has(`pawcare-${STAMP}.retired.db-journal`)).toBe(true);
     expect(files.has(`${DB_NAME}-journal`)).toBe(false);
+  });
+
+  it('copies the key before moving any file, and keeps it when the first rename fails', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const live = [DB_NAME, `${DB_NAME}-wal`];
+    const { env, keys, files } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: live });
+    env.connect.mockRejectedValueOnce(new Error('corrupt'));
+    const failed = expectState(await openPawCareData(env), 'failed');
+
+    env.files.rename.mockRejectedValueOnce(new Error('disk busy'));
+    expectState(await failed.startFresh(), 'failed');
+
+    expect(warn).toHaveBeenLastCalledWith('[data] open failed at start-fresh:', 'Error');
+    // The retired key was written before the first rename was tried.
+    expect(keys.get(`pawcare-db-key-${STAMP}`)).toBe(K1);
+    expect(keys.get(KEY_NAME)).toBe(K1);
+    expect([...files].sort()).toEqual([...live].sort());
+    expect(keys.size).toBe(2);
+  });
+
+  it('runs two concurrent Start fresh calls once, and both get the same result', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const live = [DB_NAME, `${DB_NAME}-journal`];
+    const { env, keys, files } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: live });
+    env.connect.mockRejectedValueOnce(new Error('corrupt'));
+    const failed = expectState(await openPawCareData(env), 'failed');
+
+    const [first, second] = await Promise.all([failed.startFresh(), failed.startFresh()]);
+
+    expect(second).toBe(first);
+    expectState(first, 'ready');
+    expect(env.files.rename).toHaveBeenCalledTimes(2);
+    expect([...files].sort()).toEqual(
+      [DB_NAME, `pawcare-${STAMP}.retired.db`, `pawcare-${STAMP}.retired.db-journal`].sort(),
+    );
+    // One retired copy and one new key.
+    expect(env.keys.set).toHaveBeenCalledTimes(2);
+    expect(keys.get(`pawcare-db-key-${STAMP}`)).toBe(K1);
+    expect(keys.size).toBe(2);
+    expect(env.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs two concurrent Try again calls once, and both get the same result', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { env } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: [DB_NAME] });
+    env.connect.mockRejectedValueOnce(new Error('busy'));
+    const failed = expectState(await openPawCareData(env), 'failed');
+
+    const [first, second] = await Promise.all([failed.retry(), failed.retry()]);
+
+    expect(second).toBe(first);
+    expectState(first, 'ready');
+    // The failed open, then exactly one retry.
+    expect(env.connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('runs Try again afresh once the earlier call has settled', async () => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { env } = fakeEnv({ keys: { [KEY_NAME]: K1 }, files: [DB_NAME] });
+    env.connect.mockRejectedValueOnce(new Error('busy'));
+    const failed = expectState(await openPawCareData(env), 'failed');
+
+    const first = await failed.retry();
+    const second = await failed.retry();
+    expect(second).not.toBe(first);
+    expect(env.connect).toHaveBeenCalledTimes(3);
   });
 
   it('starts fresh from key-missing: renames the old file and opens a new one', async () => {

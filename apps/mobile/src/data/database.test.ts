@@ -52,4 +52,33 @@ describe('createDatabase', () => {
     await db.write(['pets'], (c) => c.run("INSERT INTO t (id, v) VALUES (2, 'b')"));
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it('resolves a committed write even when a listener throws, and still calls the others', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const { db } = await setup();
+      const error = new Error('cannot render Mochi at /data/user/0');
+      error.name = 'RenderError';
+      const before = vi.fn();
+      const after = vi.fn();
+      db.subscribe(before);
+      db.subscribe(() => {
+        throw error;
+      });
+      db.subscribe(after);
+
+      await expect(
+        db.write(['pets'], (c) => c.run("INSERT INTO t (id, v) VALUES (1, 'a')")),
+      ).resolves.toBeDefined();
+
+      expect(await db.read((c) => c.all('SELECT v FROM t'))).toEqual([{ v: 'a' }]);
+      expect(before).toHaveBeenCalledTimes(1);
+      expect(after).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]).toEqual(['[data] listener failed:', 'RenderError']);
+      expect(JSON.stringify(warn.mock.calls)).not.toMatch(/Mochi|\/data\//);
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });

@@ -7,7 +7,8 @@ export interface Database {
   read<T>(fn: (c: SqlConnection) => Promise<T>): Promise<T>;
   /**
    * Runs `fn` in a transaction (BEGIN IMMEDIATE, then COMMIT; ROLLBACK and rethrow on error).
-   * Listeners hear about `tables` only after the commit.
+   * Listeners hear about `tables` only after the commit; a listener that throws is logged and
+   * doesn't reject the write.
    *
    * Never call `read` or `write` from inside `fn`: the queue is single-file, so it would deadlock.
    */
@@ -39,8 +40,19 @@ export function createDatabase(connection: SqlConnection): Database {
           await connection.exec('ROLLBACK').catch(() => undefined);
           throw error;
         }
+        // The write has committed: a listener's failure must not reject it or skip the others.
         const changed: ReadonlySet<TableName> = new Set(tables);
-        for (const listener of [...listeners]) listener(changed);
+        for (const listener of [...listeners]) {
+          try {
+            listener(changed);
+          } catch (error) {
+            // Only the class name: never a message or value.
+            console.warn(
+              '[data] listener failed:',
+              error instanceof Error ? error.name : 'unknown',
+            );
+          }
+        }
         return value;
       }),
     subscribe(listener) {

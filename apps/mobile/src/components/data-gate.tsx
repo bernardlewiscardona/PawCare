@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDataState, type OpenResult } from '@/data';
+import { useDataState, type DataState, type OpenResult } from '@/data';
 import { AppText } from '@/components/ui/app-text';
 import { Button, ButtonStack } from '@/components/ui/button';
 import { Banner } from '@/components/ui/feedback';
@@ -25,6 +25,11 @@ const COPY = {
     title: 'Something went wrong opening your data',
     body: 'Try again. If it keeps happening, you can start fresh. Your old data is set aside, not deleted.',
   },
+  /** `failed` when only Try again can be offered. */
+  'failed-retry-only': {
+    title: 'Something went wrong opening your data',
+    body: 'Try again. If it keeps happening, close PawCare and open it again.',
+  },
 } as const;
 
 /**
@@ -36,9 +41,12 @@ export function DataGate({ children }: { children: ReactNode }) {
   const { top } = useSafeAreaInsets();
   // Blocks a second tap before the state has switched to `opening`.
   const busy = useRef(false);
+  // The state on screen now, so a Start fresh alert can tell if it has gone stale.
+  const shown = useRef<DataState>(data);
   useEffect(() => {
     busy.current = false;
-  }, [data.state]);
+    shown.current = data;
+  }, [data]);
 
   if (data.state === 'ready') {
     return (
@@ -67,26 +75,43 @@ export function DataGate({ children }: { children: ReactNode }) {
     );
   }
 
-  const copy = COPY[data.state];
+  const copy =
+    data.state === 'failed' && !data.startFresh ? COPY['failed-retry-only'] : COPY[data.state];
+  // `replace` calls `run` only if nothing else is in flight.
   const act = (run: () => Promise<OpenResult>) => {
     if (busy.current) return;
     busy.current = true;
-    data.replace(run());
+    data.replace(run);
   };
   const confirmStartFresh = (startFresh: () => Promise<OpenResult>) => {
     if (busy.current) return;
+    // A double tap can stack two alerts, and an alert can outlive its screen. Confirming acts
+    // only while the screen still shows the OpenResult the alert was raised from: each one has
+    // its own `startFresh`, so comparing it compares the result.
+    const stillShown = () => {
+      const now = shown.current;
+      return (
+        (now.state === 'key-missing' || now.state === 'failed') && now.startFresh === startFresh
+      );
+    };
     Alert.alert(
       'Start fresh?',
       'PawCare will start empty. Your current data is set aside, not deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Start fresh', style: 'destructive', onPress: () => act(startFresh) },
+        {
+          text: 'Start fresh',
+          style: 'destructive',
+          onPress: () => {
+            if (stillShown()) act(startFresh);
+          },
+        },
       ],
     );
   };
 
   return (
-    <View style={styles.message}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.message}>
       <AppText variant="titleL" accessibilityRole="header">
         {copy.title}
       </AppText>
@@ -101,14 +126,16 @@ export function DataGate({ children }: { children: ReactNode }) {
       {data.state === 'failed' ? (
         <ButtonStack>
           <Button label="Try again" onPress={() => act(data.retry)} />
-          <Button
-            label="Start fresh"
-            variant="secondary"
-            onPress={() => confirmStartFresh(data.startFresh)}
-          />
+          {data.startFresh ? (
+            <Button
+              label="Start fresh"
+              variant="secondary"
+              onPress={() => confirmStartFresh(data.startFresh)}
+            />
+          ) : null}
         </ButtonStack>
       ) : null}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -120,12 +147,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: palette.bg.screen,
   },
+  screen: { flex: 1, backgroundColor: palette.bg.screen },
+  // Scrolls, so large text never pushes the buttons off-screen.
   message: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     gap: space[4],
     padding: space[5],
-    backgroundColor: palette.bg.screen,
   },
   banner: { position: 'absolute', left: space[4], right: space[4] },
 });
