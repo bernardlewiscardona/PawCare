@@ -1,7 +1,6 @@
 import {
   checkMedicalEventDate,
   isRuleError,
-  localDate,
   normalizeMedicalNotes,
   normalizeMedicalTitle,
   normalizeProviderName,
@@ -11,8 +10,14 @@ import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { DataDeps } from '../deps';
 import { confirmationRequired, notFound, validationFailed } from '../errors';
+import {
+  beforeBirthWarning,
+  insertCareRecord,
+  ownerToday,
+  readActivePet,
+  readOwnedPetId,
+} from '../care-records/care-record';
 import { UUID, badCursor, parsePageQuery } from '../paging';
-import type { SqlConnection } from '../sql';
 import type { CreateMedicalEventInput, MedicalEvent, MedicalEventPage } from '../types';
 import { parseCreateMedicalEventInput } from './medical-input';
 
@@ -100,14 +105,6 @@ function normalizeMedical(dto: CreateMedicalEventInput, today: string): MedicalF
   return fields;
 }
 
-async function readActivePet(c: SqlConnection, ownerId: string, id: string) {
-  if (!UUID.test(id)) return undefined;
-  return c.get<{ id: string; name: string; birth_date: string | null }>(
-    'SELECT id, name, birth_date FROM pets WHERE owner_id = ? AND id = ? AND archived_at IS NULL',
-    [ownerId, id],
-  );
-}
-
 export function createMedicalRepository(
   db: Database,
   deps: DataDeps,
@@ -119,29 +116,23 @@ export function createMedicalRepository(
       return db.write(['care_records', 'medical_events', 'change_log'], async (c) => {
         const pet = await readActivePet(c, ownerId, dto.petId);
         if (!pet) throw notFound();
-        const owner = await c.get<{ time_zone: string }>(
-          'SELECT time_zone FROM owners WHERE id = ?',
-          [ownerId],
-        );
-        const input = normalizeMedical(dto, localDate(owner!.time_zone, deps.now()));
+        const input = normalizeMedical(dto, await ownerToday(c, ownerId, deps));
         // Field errors come first; the warning only appears once every field is valid.
-        if (
-          pet.birth_date !== null &&
-          input.occurrenceDate < pet.birth_date &&
-          dto.confirmBeforeBirth !== true
-        ) {
-          throw confirmationRequired({
-            occurrenceDate: [`This date is before ${pet.name}'s birth date. Save anyway?`],
-          });
+        const warning = beforeBirthWarning(pet, input.occurrenceDate);
+        if (warning !== null && dto.confirmBeforeBirth !== true) {
+          throw confirmationRequired({ occurrenceDate: [warning] });
         }
 
         const id = deps.newId();
         const at = deps.now().toISOString();
-        await c.run(
-          `INSERT INTO care_records (id, owner_id, pet_id, kind, occurrence_date, created_at, updated_at)
-           VALUES (?, ?, ?, 'MEDICAL', ?, ?, ?)`,
-          [id, ownerId, pet.id, input.occurrenceDate, at, at],
-        );
+        await insertCareRecord(c, {
+          id,
+          ownerId,
+          petId: pet.id,
+          kind: 'MEDICAL',
+          occurrenceDate: input.occurrenceDate,
+          at,
+        });
         await c.run(
           `INSERT INTO medical_events (record_id, owner_id, pet_id, event_type, title, notes, provider_name)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -173,13 +164,9 @@ export function createMedicalRepository(
     async listForPet(petId, query = {}) {
       const { limit, cursor } = parsePageQuery(query);
       return db.read(async (c) => {
-        const pet = UUID.test(petId)
-          ? await c.get<{ id: string }>('SELECT id FROM pets WHERE owner_id = ? AND id = ?', [
-              ownerId,
-              petId,
-            ])
-          : undefined;
-        if (!pet) throw notFound();
+        const ownedPetId = await readOwnedPetId(c, ownerId, petId);
+        if (ownedPetId === undefined) throw notFound();
+        const pet = { id: ownedPetId };
 
         let after: { occurrence_date: string; id: string } | undefined;
         if (cursor !== undefined) {
