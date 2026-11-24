@@ -1,52 +1,37 @@
-import {
-  PAGE_LIMIT,
-  checkPastOrToday,
-  isRuleError,
-  localDate,
-  normalizeMicrochip,
-  normalizeOptionalText,
-  normalizePetName,
-  toGrams,
-  type FieldErrors,
-} from '@pawcare/core';
+import { PAGE_LIMIT, isRuleError, localDate, type FieldErrors } from '@pawcare/core';
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { SqlConnection } from '../sql';
 import type { DataDeps } from '../deps';
-import { notFound, profileSetupRequired, validationFailed } from '../errors';
-import type { CreatePetInput, Pet, PetPage } from '../types';
-import { parseCreatePetInput } from './pet-input';
+import { conflict, notFound, profileSetupRequired, validationFailed } from '../errors';
+import type { CreatePetInput, Pet, PetPage, UpdatePetInput } from '../types';
+import {
+  DATE_NEEDS_WEIGHT,
+  ESTIMATE_NEEDS_DATE,
+  ONLY_OTHER,
+  petRules,
+  toPet,
+  type PetRow,
+} from './pet-fields';
+import { parseCreatePetInput, parseUpdatePetInput } from './pet-input';
+import { mergePetUpdate } from './pet-update';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SETUP_MESSAGE = 'Finish setting up your profile before adding a pet.';
 const PAGE_SIZE_MESSAGE = 'Choose a page size of 1–100.';
 const CURSOR_MESSAGE = 'Use the nextCursor from the previous page.';
+const CONFLICT_MESSAGE = 'This pet was changed elsewhere. Review the latest version and try again.';
 
 export interface PetRepository {
   create(input: CreatePetInput): Promise<Pet>;
   list(query?: { limit?: number; cursor?: string }): Promise<PetPage>;
   get(id: string): Promise<Pet>;
+  /** Edits an active pet. Stale `version` → `CONFLICT`; archived or unknown → `NOT_FOUND`. */
+  update(input: UpdatePetInput): Promise<Pet>;
   /** The selected pet if active; else the oldest active pet; `null` with none. Never writes. */
   selected(): Promise<Pet | null>;
   /** Stores the selection. Unknown, malformed or archived pets are `NOT_FOUND`. */
   select(id: string): Promise<Pet>;
-}
-
-interface PetRow {
-  id: string;
-  name: string;
-  species: Pet['species'];
-  species_other: string | null;
-  breed: string | null;
-  sex: Pet['sex'];
-  birth_date: string | null;
-  birth_date_estimated: number;
-  current_weight_g: number | null;
-  weight_measured_on: string | null;
-  microchip: string | null;
-  version: number;
-  created_at: string;
-  archived_at: string | null;
 }
 
 /** Validated pet fields, before defaults. The weight is kilograms, as in the API. */
@@ -63,25 +48,6 @@ interface PetFields {
   microchip?: string;
 }
 
-function toPet(row: PetRow): Pet {
-  return {
-    id: row.id,
-    name: row.name,
-    species: row.species,
-    speciesOther: row.species_other,
-    breed: row.breed,
-    sex: row.sex,
-    birthDate: row.birth_date,
-    birthDateEstimated: row.birth_date_estimated === 1,
-    currentWeightKg: row.current_weight_g === null ? null : row.current_weight_g / 1000,
-    weightMeasuredOn: row.weight_measured_on,
-    microchip: row.microchip,
-    version: row.version,
-    createdAt: row.created_at,
-    archivedAt: row.archived_at,
-  };
-}
-
 /** Applies every field rule; throws one error listing all failures. */
 function normalizePet(dto: CreatePetInput, today: string): PetFields {
   const errors: FieldErrors = {};
@@ -91,56 +57,35 @@ function normalizePet(dto: CreatePetInput, today: string): PetFields {
     else input[field] = result as PetFields[K];
   };
 
-  take('name', normalizePetName(dto.name));
+  take('name', petRules.name(dto.name));
   if (dto.species === 'OTHER') {
-    take(
-      'speciesOther',
-      normalizeOptionalText(
-        dto.speciesOther ?? '',
-        100,
-        'Describe the species in 1–100 characters.',
-      ),
-    );
+    take('speciesOther', petRules.speciesOther(dto.speciesOther ?? ''));
   } else if (dto.speciesOther !== undefined) {
-    errors.speciesOther = ['Only add a description when the species is Other.'];
+    errors.speciesOther = [ONLY_OTHER];
   }
-  if (dto.breed !== undefined) {
-    take('breed', normalizeOptionalText(dto.breed, 100, 'Enter a breed of 1–100 characters.'));
-  }
+  if (dto.breed !== undefined) take('breed', petRules.breed(dto.breed));
   if (dto.sex !== undefined) input.sex = dto.sex;
-  if (dto.birthDate !== undefined) {
-    take(
-      'birthDate',
-      checkPastOrToday(dto.birthDate, today, "The birth date can't be in the future."),
-    );
-  }
+  if (dto.birthDate !== undefined) take('birthDate', petRules.birthDate(dto.birthDate, today));
   if (dto.birthDateEstimated !== undefined) {
     if (dto.birthDateEstimated && dto.birthDate === undefined) {
-      errors.birthDateEstimated = ['Add a birth date to mark it as estimated.'];
+      errors.birthDateEstimated = [ESTIMATE_NEEDS_DATE];
     } else {
       input.birthDateEstimated = dto.birthDateEstimated;
     }
   }
   if (dto.weight !== undefined) {
-    const grams = toGrams(dto.weight.value, dto.weight.unit);
+    const grams = petRules.weightGrams(dto.weight);
     if (isRuleError(grams)) errors.weight = [grams.error];
     else input.currentWeightKg = grams / 1000;
   }
   if (dto.weightMeasuredOn !== undefined) {
     if (dto.weight === undefined) {
-      errors.weightMeasuredOn = ['Add a weight for this measurement date.'];
+      errors.weightMeasuredOn = [DATE_NEEDS_WEIGHT];
     } else {
-      take(
-        'weightMeasuredOn',
-        checkPastOrToday(
-          dto.weightMeasuredOn,
-          today,
-          "The measurement date can't be in the future.",
-        ),
-      );
+      take('weightMeasuredOn', petRules.weightMeasuredOn(dto.weightMeasuredOn, today));
     }
   }
-  if (dto.microchip !== undefined) take('microchip', normalizeMicrochip(dto.microchip));
+  if (dto.microchip !== undefined) take('microchip', petRules.microchip(dto.microchip));
   if (Object.keys(errors).length > 0) throw validationFailed(errors);
   return input;
 }
@@ -251,6 +196,43 @@ export function createPetRepository(db: Database, deps: DataDeps, ownerId: strin
         data: page.map(toPet),
         nextCursor: rows.length > limit ? page[page.length - 1].id : null,
       };
+    },
+
+    async update(rawInput) {
+      const input = parseUpdatePetInput(rawInput);
+      return db.write(['pets', 'change_log'], async (c) => {
+        const row = await readActivePet(c, ownerId, input.id);
+        if (!row) throw notFound();
+        const owner = await c.get<{ time_zone: string }>(
+          'SELECT time_zone FROM owners WHERE id = ?',
+          [ownerId],
+        );
+        const today = localDate(owner!.time_zone, deps.now());
+        const { fields, sets } = mergePetUpdate(row, input, today);
+        if (fields.length === 0) {
+          if (row.version === input.version) return toPet(row);
+          throw conflict(CONFLICT_MESSAGE, toPet(row));
+        }
+
+        const at = deps.now().toISOString();
+        const { changes } = await c.run(
+          `UPDATE pets SET ${sets.map(([column]) => `${column} = ?`).join(', ')},
+             version = version + 1, updated_at = ?
+           WHERE owner_id = ? AND id = ? AND version = ? AND archived_at IS NULL`,
+          [...sets.map(([, value]) => value), at, ownerId, row.id, input.version],
+        );
+        if (changes === 0) throw conflict(CONFLICT_MESSAGE, toPet(row));
+        const updated = (await readActivePet(c, ownerId, row.id))!;
+        await recordChange(c, deps, {
+          ownerId,
+          entityType: 'pet',
+          entityId: row.id,
+          entityVersion: updated.version,
+          action: 'pet.updated',
+          fields,
+        });
+        return toPet(updated);
+      });
     },
 
     async selected() {
