@@ -6,6 +6,10 @@
 !pnpm-workspace.yaml
 !.npmrc
 !apps/mobile/package.json
+!packages/core/package.json
+!packages/core/tsconfig.json
+!packages/core/tsconfig.build.json
+!packages/core/src/
 !apps/api/package.json
 !apps/api/prisma.config.ts
 !apps/api/prisma/
