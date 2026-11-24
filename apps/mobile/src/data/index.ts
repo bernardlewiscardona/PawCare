@@ -7,6 +7,10 @@ export type {
   CreatePetInput,
   UpdatePetInput,
   PetPage,
+  MedicalEvent,
+  MedicalEventType,
+  CreateMedicalEventInput,
+  MedicalEventPage,
 } from './types';
 export type { OpenResult, PawCareData } from './open';
 export type { TableName } from './database';
