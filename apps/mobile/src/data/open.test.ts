@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LATEST_VERSION } from './migrations';
 import { DB_NAME, KEY_NAME, openPawCareData, type OpenEnv, type OpenResult } from './open';
 import type { SqlConnection } from './sql';
 import { openNodeConnection } from './testing/node-sqlite';
@@ -110,7 +111,7 @@ describe('openPawCareData', () => {
     const ready = expectState(await openPawCareData(env), 'ready');
 
     expect(ready.encrypted).toBe(true);
-    expect(ready.userVersion).toBe(1);
+    expect(ready.userVersion).toBe(LATEST_VERSION);
     const key = keys.get(KEY_NAME);
     expect(key).toMatch(/^[0-9a-f]{64}$/);
     expect(env.randomBytes).toHaveBeenCalledWith(32);

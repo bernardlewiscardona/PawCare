@@ -39,11 +39,11 @@ function addPet(cols: Record<string, string | number | null> = {}, ownerId = OWN
 }
 
 describe('migrate', () => {
-  it('applies 0001 once', async () => {
+  it('applies every migration once', async () => {
     const fresh = createDatabase(openNodeConnection());
-    expect(await migrate(fresh)).toEqual({ from: 0, to: 1 });
-    expect(await fresh.read((c) => c.get('PRAGMA user_version'))).toEqual({ user_version: 1 });
-    expect(await migrate(fresh)).toEqual({ from: 1, to: 1 });
+    expect(await migrate(fresh)).toEqual({ from: 0, to: 2 });
+    expect(await fresh.read((c) => c.get('PRAGMA user_version'))).toEqual({ user_version: 2 });
+    expect(await migrate(fresh)).toEqual({ from: 2, to: 2 });
   });
 
   it('refuses a database from a newer app', async () => {
@@ -130,6 +130,46 @@ describe('schema constraints', () => {
     await expect(
       addPet({ id: '01900000-0000-7000-8000-000000000003', name: tooLong }),
     ).rejects.toThrow();
+  });
+});
+
+describe('pet_selection', () => {
+  const OTHER_OWNER = '01900000-0000-7000-8000-000000000009';
+  const select = (ownerId = OWNER, petId = PET) =>
+    conn.run('INSERT INTO pet_selection (owner_id, pet_id, selected_at) VALUES (?, ?, ?)', [
+      ownerId,
+      petId,
+      NOW,
+    ]);
+
+  it("accepts the owner's own pet", async () => {
+    await addOwner();
+    await addPet();
+    await expect(select()).resolves.toBeTruthy();
+  });
+
+  it("rejects another owner's pet", async () => {
+    await conn.exec('DROP INDEX owners_single');
+    await addOwner();
+    await conn.run('INSERT INTO owners (id, created_at, updated_at) VALUES (?, ?, ?)', [
+      OTHER_OWNER,
+      NOW,
+      NOW,
+    ]);
+    await addPet({}, OTHER_OWNER);
+    await expect(select()).rejects.toThrow(/FOREIGN KEY/);
+  });
+
+  it('rejects an unknown pet', async () => {
+    await addOwner();
+    await expect(select()).rejects.toThrow(/FOREIGN KEY/);
+  });
+
+  it('keeps one row per owner', async () => {
+    await addOwner();
+    await addPet();
+    await select();
+    await expect(select()).rejects.toThrow(/UNIQUE/);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { SqlConnection } from './sql';
 
-export type TableName = 'owners' | 'pets' | 'change_log';
+export type TableName = 'owners' | 'pets' | 'pet_selection' | 'change_log';
 
 export interface Database {
   /** Runs `fn` on the connection. Calls run one at a time, in call order. */
