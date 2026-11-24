@@ -8,6 +8,8 @@ This logical design was derived from the tickets. It is implemented as the basel
 
 ## Implementation status (23 November 2026)
 
+> **Update 24 Nov 2026 (LOCAL-01):** release 1 is local-first. The PostgreSQL schema described here is the **parked server schema**; the live schema is the SQLite one on the phone in `apps/mobile/src/data/migrations`, which follows these tables minus server-only fields and with SQLite type conversions (see `CLAUDE.md`).
+
 The diagrams below were updated to match the implemented schema and the decisions in `docs/decisions.md`. Where the implemented schema goes further than a diagram, `schema.prisma` and the migration SQL are authoritative.
 
 | Topic | Original design | Implemented |

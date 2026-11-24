@@ -5,7 +5,10 @@ A mobile pet diary for owners: pet profiles, owner-entered health history, vacci
 | App | Path | Stack |
 | --- | --- | --- |
 | Mobile | `apps/mobile` | Expo SDK 58, React Native, TypeScript, Expo Router |
-| API | `apps/api` | NestJS 12 (ESM), TypeScript, Prisma 7 + PostgreSQL 16 |
+| Shared rules | `packages/core` | `@pawcare/core`: plain TypeScript, shared by mobile and API |
+| API (parked) | `apps/api` | NestJS 12 (ESM), TypeScript, Prisma 7 + PostgreSQL 16 |
+
+Release 1 is **local-first**: the owner's data lives in an encrypted database on their phone, and the API and PostgreSQL are parked (still built and tested in CI, not deployed). You don't need Docker or the API to run the app. Sections 3 and 4 are for working on the parked API.
 
 This repo is set up for Claude Code: start with `CLAUDE.md`.
 
@@ -25,12 +28,14 @@ This repo is set up for Claude Code: start with `CLAUDE.md`.
 ```bash
 git clone <repo-url> pawcare && cd pawcare
 corepack enable
-pnpm install --frozen-lockfile        # also generates the Prisma client
+pnpm install --frozen-lockfile        # also builds packages/core and generates the Prisma client
 
 cp .env.example .env                  # only POSTGRES_PORT, used by Docker Compose
 cp apps/api/.env.example apps/api/.env
 cp apps/mobile/.env.example apps/mobile/.env   # optional, see section 5
 ```
+
+`packages/core` is built to `dist` by its `prepare` script during `pnpm install`. The API and the mobile app consume that `dist`, so **after you edit `packages/core`, run `pnpm --filter @pawcare/core build`** (or `pnpm build`) before API or mobile tests and typecheck will see the change. The Docker dev image builds core too (compose runs the core build before the API starts).
 
 ## 3. Start the database
 
@@ -119,7 +124,15 @@ Run API commands inside the container:
 pnpm dev:mobile       # Expo dev server; press a (Android), i (iOS) or scan the QR code with Expo Go
 ```
 
-You don't need the database or the API to try the screens (see the demo data note below), so after first-time setup (section 2) you can skip sections 3 and 4.
+You don't need the database or the API to run the app, so after first-time setup (section 2) you can skip sections 3 and 4.
+
+### How the phone database works
+
+The owner profile and pets are stored in an SQLCipher-encrypted SQLite database (`pawcare.db`) on the phone. The key is generated on first launch and kept in the device's secure storage (`expo-secure-store`), and Android backup is off (`android.allowBackup: false`). Code reaches the data only through `apps/mobile/src/data`, and its schema is the append-only migrations in `apps/mobile/src/data/migrations`.
+
+If the database can't open, the app shows a state screen (encryption unavailable, newer app data, missing key, or failed) instead of the app. "Start fresh" moves the old database files aside and never deletes them.
+
+**Encryption needs a development build.** Expo Go doesn't include SQLCipher, so in Expo Go the database is **not encrypted** and the app shows the banner "Development data, not encrypted". That is allowed in development only. To test encryption, make a development build (`pnpm --filter mobile exec expo run:android`, or `eas build --profile development`) or a release build. The Developer tools screen shows the database status. Verification on a real Android device is still pending.
 
 ### Run on the Android emulator (Android Studio)
 
@@ -144,11 +157,11 @@ Every time:
 
 To try a test APK instead of the dev server, drag the `.apk` onto the emulator window, or run `adb install -r PawCare-1.0.0.apk`. To build one, see "Build a test APK (Android)" below.
 
-The app opens on the Welcome screen. Every screen from the Figma design is built, but they all run on **in-memory demo data** (Bea and her pets Mochi, Kape and archived Bantay, with the clock fixed at 10 Nov 2026). Nothing calls the API yet, and changes are lost on reload. Feature tickets replace the demo data with API calls.
+The app opens on the Welcome screen. Every screen from the Figma design is built. The owner profile and pet registration are moving onto the phone database (LOCAL-01 and the `PF-01-APP`/`PF-02-APP` subtasks); the other screens still run on **in-memory demo data** (Bea and her pets Mochi, Kape and archived Bantay, with the clock fixed at 10 Nov 2026), which is lost on reload. Feature tickets replace the demo data with `src/data` calls.
 
-The **development connectivity check**, which calls the API's `/health/ready`, is on the Developer tools screen: long-press the logo on Welcome (development builds only).
+The **development connectivity check**, which calls the parked API's `/health/ready` (optional, only if you run the API), is on the Developer tools screen: long-press the logo on Welcome (development builds only).
 
-How the app finds the API:
+How the app finds the parked API (only needed for that check):
 
 | Where the app runs | API URL | What to do |
 | --- | --- | --- |
@@ -238,10 +251,12 @@ The rules Prisma can't express are hand-written into the migration SQL, in secti
 
 ```
 apps/
-  api/                  NestJS API (src/config, src/common, src/prisma, src/health, prisma/)
+  api/                  NestJS API, parked (src/config, src/common, src/prisma, src/health, prisma/)
   mobile/               Expo app: src/app = routes, src/components/ui = UI kit from the Figma design system,
                         src/components = feature components, src/theme = design tokens,
-                        src/lib = demo store and derived state, assets/ = SVG icons, illustrations, avatars
+                        src/data = on-phone database layer, src/lib = demo store and derived state, assets/ = SVG icons, illustrations, avatars
+packages/
+  core/                 @pawcare/core: shared rules and error codes (built to dist on install)
 docs/
   spec/                 product spec: overview + one file per epic
   design/               ERD, flowcharts, design review

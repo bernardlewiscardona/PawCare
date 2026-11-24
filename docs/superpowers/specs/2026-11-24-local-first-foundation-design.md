@@ -1,6 +1,6 @@
 # LOCAL-01 — Local-first foundation
 
-Date: 24 Nov 2026 · Status: awaiting approval · Ticket: LOCAL-01 (new) · Spec: `docs/spec/00-overview.md`,
+Date: 24 Nov 2026 · Status: approved 24 Nov 2026, implemented on LOCAL-01-local-first · Ticket: LOCAL-01 (new) · Spec: `docs/spec/00-overview.md`,
 `docs/spec/epics/PF.md` (PF-01, PF-02)
 
 ## Intent

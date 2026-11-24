@@ -39,3 +39,16 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Data layer (LOCAL-01)
+
+PawCare's data lives on the phone, in an SQLCipher-encrypted SQLite database behind `src/data`. Screens import only from `@/data` (`src/data/index.ts`). Shared rules and error codes come from `@pawcare/core`; after editing core, run `pnpm --filter @pawcare/core build`.
+
+- Repositories (`owner/`, `pets/`) go through `Database.write(tables, fn)` with the tables declared, and reads through `Database.read`. Everything runs on one serialised queue, so never call `read` or `write` inside another's callback.
+- Every mutation calls `recordChange` (`change-log.ts`) in the same transaction, with field names only, never values or health text.
+- Migrations in `src/data/migrations/` are append-only, numbered, and tracked by `PRAGMA user_version`. Never edit a released migration; add a new one.
+- SQL uses bound parameters only. Never build SQL by string concatenation with user input.
+- Tests use `openTestData()` from `src/data/testing` (over `node:sqlite`), not a mocked database.
+- Errors are `DataError` carrying the same codes as the API (`errors.ts`), with field-level details for validation.
+- `openPawCareData` reports `ready`, `encryption-unavailable`, `too-new`, `key-missing` or `failed`; `DataGate` shows the matching screen. "Start fresh" retires the database files and copies the key, and never deletes.
+- Encryption needs a development or release build. In Expo Go the database is unencrypted and the banner "Development data, not encrypted" shows (development only). Device verification on Android is still pending.
