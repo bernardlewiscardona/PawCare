@@ -7,7 +7,7 @@ VC,Vaccines and prescriptions,Epic,,High,Proposed,,docs/spec/epics/VC.md
 AP,Owner appointment diary,Epic,,High,Proposed,,docs/spec/epics/AP.md
 RM,Reminders,Epic,,High,Proposed,,docs/spec/epics/RM.md
 IN,Household inventory,Epic,,Medium,Proposed,,docs/spec/epics/IN.md
-SETUP-01,Initialize PawCare repository and development environment,Task,SETUP,High,In Review,,docs/spec/epics/SETUP.md
+SETUP-01,Initialize PawCare repository and development environment,Task,SETUP,High,Done,,docs/spec/epics/SETUP.md
 FN-01,Enforce owner access boundaries,User Story,FN,High,In Review,SETUP-01,docs/spec/epics/FN.md
 AUTH-01,Sign in with Google and upload phone data,Task,FN,High,Proposed,FN-01,docs/spec/epics/FN.md
 FN-02,Request permanent account and data deletion,User Story,FN,High,Proposed,all resource stories (release gate: retention policy),docs/spec/epics/FN.md
@@ -20,9 +20,10 @@ PF-03-APP,Pet switcher and edit screens on the phone data layer,Task,PF,High,Pro
 PF-04,Archive and restore a pet,User Story,PF,Medium,Proposed,PF-02 AP-03 RM-02,docs/spec/epics/PF.md
 MR-01,Record a medical event,User Story,MR,High,Proposed,PF-02,docs/spec/epics/MR.md
 MR-02,Attach medical documents,User Story,MR,High,Proposed,FN-01 MR-01,docs/spec/epics/MR.md
-MR-03,Browse the unified pet health timeline,User Story,MR,High,Proposed,MR-01 VC-01 VC-02 AP-05,docs/spec/epics/MR.md
+MR-03,Browse the unified pet health timeline,User Story,MR,High,Proposed,MR-01 VC-01 VC-02,docs/spec/epics/MR.md
+MR-03-AP,Appointment entries in the health timeline,Task,MR,High,Proposed,MR-03 AP-05,docs/spec/epics/MR.md
 MR-04,Correct or void a medical event,User Story,MR,High,Proposed,MR-01 MR-03,docs/spec/epics/MR.md
-VC-01,Record an administered vaccine,User Story,VC,High,Proposed,PF-02 MR-03,docs/spec/epics/VC.md
+VC-01,Record an administered vaccine,User Story,VC,High,Proposed,PF-02,docs/spec/epics/VC.md
 VC-02,Record a prescription and owner-entered schedule,User Story,VC,High,Proposed,PF-02 RM-01 RM-02,docs/spec/epics/VC.md
 VC-03,Log a medication dose and stop a prescription,User Story,VC,High,Proposed,VC-02 RM-02,docs/spec/epics/VC.md
 VC-04,Review upcoming and overdue care,User Story,VC,High,Proposed,VC-01 VC-02 VC-03 RM-02,docs/spec/epics/VC.md
