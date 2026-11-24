@@ -105,3 +105,39 @@ export interface MedicalEventPage {
   data: MedicalEvent[];
   nextCursor: string | null;
 }
+
+/** An owner-entered vaccination (VC-01): a care record of kind VACCINE plus its details. */
+export interface Vaccination {
+  id: string;
+  petId: string;
+  vaccineName: string;
+  /** Date only, `YYYY-MM-DD`. */
+  administeredOn: string;
+  providerName: string | null;
+  batchLabel: string | null;
+  /**
+   * The documented next due date, or `null` when none was entered ("No next date recorded"; never
+   * inferred). `overdue` is worked out when read: the due date is before the owner's today.
+   */
+  nextDue: { id: string; dueOn: string; overdue: boolean } | null;
+  status: 'ACTIVE' | 'VOIDED';
+  provenance: 'OWNER_ENTERED';
+  voidReason: string | null;
+  voidedAt: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateVaccinationInput {
+  petId: string;
+  vaccineName: string;
+  administeredOn: string;
+  providerName?: string;
+  batchLabel?: string;
+  nextDueOn?: string;
+  /** Set after the owner confirms a vaccine with the same name on the same date. */
+  confirmSimilar?: boolean;
+  /** Set after the owner confirms a date before the pet's birth date. */
+  confirmBeforeBirth?: boolean;
+}
