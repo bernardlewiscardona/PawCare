@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DataError } from '../errors';
-import { CHOOSE_UNIT, NOT_ALLOWED, VERSION } from '../shape';
+import { CHOOSE_UNIT, INVALID, NOT_ALLOWED, VERSION } from '../shape';
 import { openTestData } from '../testing/test-data';
 
 async function rejection(p: Promise<unknown>): Promise<DataError> {
@@ -95,6 +95,14 @@ describe('owner repository', () => {
     expect((b.details as any).fields.version).toEqual([VERSION]);
     const c = await rejection(owner.update({ version: 2, weightUnit: 'STONE' } as never));
     expect((c.details as any).fields.weightUnit).toEqual([CHOOSE_UNIT]);
+  });
+
+  it('uses the shared message for a wrong-typed field', async () => {
+    const { owner } = await openTestData();
+    await owner.update(setup);
+    const e = await rejection(owner.update({ version: 2, displayName: 5 } as never));
+    expect((e.details as any).fields.displayName).toEqual([INVALID]);
+    expect(INVALID).toBe('Enter a valid value.');
   });
 
   it('logs one profile_updated row with field names only', async () => {
