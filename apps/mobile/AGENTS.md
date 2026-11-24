@@ -48,7 +48,7 @@ PawCare's data lives on the phone, in an SQLCipher-encrypted SQLite database beh
 - Every mutation calls `recordChange` (`change-log.ts`) in the same transaction, with field names only, never values or health text.
 - Repositories are created with the phone's owner ID (from `ensureOwner`), and every query filters by `owner_id`, even though a phone holds one owner today.
 - The selected pet (PF-03) is `pets.selected()` / `pets.select(id)`; watch `['pets', 'pet_selection']` with `useLiveQuery`. It is a device preference: no `version`, no `change_log` row, not uploaded. When the selected pet is archived or missing, `selected()` falls back to the oldest active pet, or `null`. Creating a pet selects it. Care forms still take an explicit `petId`, never "whatever is selected".
-- `pets.update({ id, version, ...fields })` edits an active pet; `null` clears an optional field. A stale `version` gives `CONFLICT` with `details.current`.
+- `pets.update({ id, version, ...fields })` edits an active pet; `null` clears an optional field. A changed weight sent without `weightMeasuredOn` is dated today in the owner's zone; re-sending the stored weight keeps its date. A stale `version` gives `CONFLICT` with `details.current`.
 - Migrations in `src/data/migrations/` are append-only, numbered, and tracked by `PRAGMA user_version`. Never edit a released migration; add a new one.
 - SQL uses bound parameters only. Never build SQL by string concatenation with user input.
 - Tests use `openTestData()` from `src/data/testing` (over `node:sqlite`), not a mocked database.

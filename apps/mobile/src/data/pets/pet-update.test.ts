@@ -85,6 +85,23 @@ describe('pet repository: update', () => {
     expect(updated.weightMeasuredOn).toBe('2026-11-24');
   });
 
+  it('keeps the measurement date when the same weight is sent again', async () => {
+    const { pets, pet, db } = await withPet({
+      weight: { value: 4, unit: 'KG' },
+      weightMeasuredOn: '2026-11-01',
+    });
+    const same = await pets.update({ id: pet.id, version: 1, weight: { value: 4, unit: 'KG' } });
+    expect(same).toEqual(pet);
+    const renamed = await pets.update({
+      id: pet.id,
+      version: 1,
+      name: 'Mochi II',
+      weight: { value: 4, unit: 'KG' },
+    });
+    expect(renamed.weightMeasuredOn).toBe('2026-11-01');
+    expect(JSON.parse((await petLogs(db))[1].fields)).toEqual(['name']);
+  });
+
   it('keeps the measurement date when only the date is corrected', async () => {
     const { pets, pet } = await withPet({ weight: { value: 4, unit: 'KG' } });
     const updated = await pets.update({ id: pet.id, version: 1, weightMeasuredOn: '2026-11-01' });

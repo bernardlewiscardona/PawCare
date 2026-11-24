@@ -108,7 +108,9 @@ export function mergePetUpdate(row: PetRow, input: UpdatePetInput, today: string
   } else if (input.weightMeasuredOn === null) {
     errors.weightMeasuredOn = [WEIGHT_NEEDS_DATE];
   } else {
-    measuredOn = input.weight ? today : row.weight_measured_on;
+    // Only a changed weight is dated today; re-sending the stored weight keeps its date.
+    const newWeight = input.weight != null && grams !== row.current_weight_g;
+    measuredOn = newWeight ? today : row.weight_measured_on;
   }
 
   const microchip = optional('microchip', input.microchip, row.microchip, petRules.microchip);
