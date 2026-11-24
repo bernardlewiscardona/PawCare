@@ -1,6 +1,6 @@
 import { MAX_INT4, WEIGHT_UNITS, type FieldErrors } from '@pawcare/core';
 import { validationFailed } from '../errors';
-import { CHOOSE_UNIT, VERSION, asRecord, rejectUnknown } from '../shape';
+import { CHOOSE_UNIT, INVALID, VERSION, asRecord, rejectUnknown } from '../shape';
 import type { UpdateOwnerInput } from '../types';
 
 const ALLOWED = ['version', 'displayName', 'timeZone', 'phone', 'weightUnit'] as const;
@@ -16,7 +16,7 @@ export function parseUpdateOwnerInput(input: unknown): UpdateOwnerInput {
     errors.version = [VERSION];
   }
   const invalid = (field: string) => {
-    errors[field] = ['must be a string'];
+    errors[field] = [INVALID];
   };
   if (displayName !== undefined && typeof displayName !== 'string') invalid('displayName');
   if (timeZone !== undefined && typeof timeZone !== 'string') invalid('timeZone');
