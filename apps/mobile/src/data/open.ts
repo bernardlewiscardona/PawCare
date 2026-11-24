@@ -166,7 +166,7 @@ export async function openPawCareData(env: OpenEnv): Promise<OpenResult> {
 
     step = 'owner';
     const deps: DataDeps = { newId: createUuidV7(env.randomBytes), now: env.now };
-    await db.write(['owners', 'change_log'], (c) => ensureOwner(c, deps));
+    const ownerId = await db.write(['owners', 'change_log'], (c) => ensureOwner(c, deps));
 
     const open = connection;
     return {
@@ -175,7 +175,7 @@ export async function openPawCareData(env: OpenEnv): Promise<OpenResult> {
       userVersion,
       data: {
         owner: createOwnerRepository(db, deps),
-        pets: createPetRepository(db, deps),
+        pets: createPetRepository(db, deps, ownerId),
         subscribe: db.subscribe,
         // Queued, so work already started finishes before the connection closes.
         close: () => db.read(() => open.close()),

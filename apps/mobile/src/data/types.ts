@@ -30,6 +30,8 @@ export interface Pet {
   microchip: string | null;
   version: number;
   createdAt: string;
+  /** Set once the pet is archived (PF-04); archived pets are read-only and leave the selector. */
+  archivedAt: string | null;
 }
 
 export interface CreatePetInput {

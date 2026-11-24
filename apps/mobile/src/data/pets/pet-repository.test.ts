@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { DataError } from '../errors';
 import { CHOOSE_SEX, CHOOSE_SPECIES, NOT_ALLOWED, WEIGHT_NUMBER } from '../shape';
-import { openTestData } from '../testing/test-data';
+import { addOtherOwnerPet, openTestData } from '../testing/test-data';
 
 async function rejection(p: Promise<unknown>): Promise<DataError> {
   try {
@@ -40,6 +40,7 @@ describe('pet repository: create', () => {
       microchip: null,
       version: 1,
       createdAt: '2026-11-24T08:00:00.000Z',
+      archivedAt: null,
     });
     expect(await pets.get(pet.id)).toEqual(pet);
   });
@@ -212,7 +213,7 @@ describe('pet repository: list and get', () => {
       c.run('UPDATE pets SET archived_at = ? WHERE id = ?', ['2026-11-24T09:00:00.000Z', pet.id]),
     );
     expect((await pets.list()).data).toEqual([]);
-    expect(await pets.get(pet.id)).toEqual(pet);
+    expect(await pets.get(pet.id)).toEqual({ ...pet, archivedAt: '2026-11-24T09:00:00.000Z' });
   });
 
   it('rejects a bad limit or cursor', async () => {
@@ -235,5 +236,26 @@ describe('pet repository: list and get', () => {
       expect(e.message).toBe('Not found');
       expect(e.details).toBeNull();
     }
+  });
+});
+
+describe('pet repository: owner scoping', () => {
+  it("never shows another owner's pet", async () => {
+    const { pets, db } = await ready();
+    const mine = await pets.create({ name: 'Mochi', species: 'CAT' });
+    const other = await addOtherOwnerPet(db);
+    expect((await pets.list()).data.map((p) => p.id)).toEqual([mine.id]);
+    const e = await rejection(pets.get(other.petId));
+    expect([e.code, e.message, e.details]).toEqual(['NOT_FOUND', 'Not found', null]);
+  });
+
+  it('creates the pet under its own owner when another owner exists', async () => {
+    const { pets, db, ownerId } = await ready();
+    await addOtherOwnerPet(db);
+    const pet = await pets.create({ name: 'Mochi', species: 'CAT' });
+    const row = await db.read((c) =>
+      c.get<{ owner_id: string }>('SELECT owner_id FROM pets WHERE id = ?', [pet.id]),
+    );
+    expect(row?.owner_id).toBe(ownerId);
   });
 });
