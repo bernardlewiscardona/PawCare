@@ -47,6 +47,22 @@ export interface CreatePetInput {
   microchip?: string;
 }
 
+/** `null` clears an optional field; `name`, `species`, `sex` and `birthDateEstimated` can't be null. */
+export interface UpdatePetInput {
+  id: string;
+  version: number;
+  name?: string;
+  species?: Pet['species'];
+  speciesOther?: string | null;
+  breed?: string | null;
+  sex?: Pet['sex'];
+  birthDate?: string | null;
+  birthDateEstimated?: boolean;
+  weight?: { value: number; unit: 'KG' | 'LB' } | null;
+  weightMeasuredOn?: string | null;
+  microchip?: string | null;
+}
+
 export interface PetPage {
   data: Pet[];
   nextCursor: string | null;
