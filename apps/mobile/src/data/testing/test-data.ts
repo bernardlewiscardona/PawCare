@@ -8,12 +8,14 @@ import {
   ensureOwner,
   type OwnerRepository,
 } from '../owner/owner-repository';
+import { createPetRepository, type PetRepository } from '../pets/pet-repository';
 import { openNodeConnection } from './node-sqlite';
 
 export async function openTestData(options: { now?: Date } = {}): Promise<{
   db: Database;
   deps: DataDeps;
   owner: OwnerRepository;
+  pets: PetRepository;
   ownerId: string;
 }> {
   const db = createDatabase(openNodeConnection());
@@ -24,5 +26,11 @@ export async function openTestData(options: { now?: Date } = {}): Promise<{
     now: () => fixed,
   };
   const ownerId = await db.write(['owners', 'change_log'], (c) => ensureOwner(c, deps));
-  return { db, deps, owner: createOwnerRepository(db, deps), ownerId };
+  return {
+    db,
+    deps,
+    owner: createOwnerRepository(db, deps),
+    pets: createPetRepository(db, deps),
+    ownerId,
+  };
 }

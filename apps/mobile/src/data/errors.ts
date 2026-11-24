@@ -27,6 +27,6 @@ export function conflict(message: string, current: unknown): DataError {
   return new DataError(ErrorCode.CONFLICT, message, { current });
 }
 
-export function profileSetupRequired(): DataError {
-  return new DataError(ErrorCode.PROFILE_SETUP_REQUIRED, 'Finish setting up your profile first.');
+export function profileSetupRequired(message = 'Finish setting up your profile first.'): DataError {
+  return new DataError(ErrorCode.PROFILE_SETUP_REQUIRED, message);
 }
