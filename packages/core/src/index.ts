@@ -9,5 +9,18 @@ export {
   normalizePetName,
   toGrams,
 } from './pet-rules.js';
-export { MAX_INT4, PAGE_LIMIT, SEXES, SPECIES, WEIGHT_UNITS } from './constants.js';
+export {
+  MAX_INT4,
+  MEDICAL_EVENT_TYPES,
+  PAGE_LIMIT,
+  SEXES,
+  SPECIES,
+  WEIGHT_UNITS,
+} from './constants.js';
+export {
+  checkMedicalEventDate,
+  normalizeMedicalNotes,
+  normalizeMedicalTitle,
+  normalizeProviderName,
+} from './medical-rules.js';
 export { createUuidV7 } from './uuidv7.js';
