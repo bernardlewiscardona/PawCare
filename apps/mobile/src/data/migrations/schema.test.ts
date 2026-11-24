@@ -41,9 +41,9 @@ function addPet(cols: Record<string, string | number | null> = {}, ownerId = OWN
 describe('migrate', () => {
   it('applies every migration once', async () => {
     const fresh = createDatabase(openNodeConnection());
-    expect(await migrate(fresh)).toEqual({ from: 0, to: 2 });
-    expect(await fresh.read((c) => c.get('PRAGMA user_version'))).toEqual({ user_version: 2 });
-    expect(await migrate(fresh)).toEqual({ from: 2, to: 2 });
+    expect(await migrate(fresh)).toEqual({ from: 0, to: 3 });
+    expect(await fresh.read((c) => c.get('PRAGMA user_version'))).toEqual({ user_version: 3 });
+    expect(await migrate(fresh)).toEqual({ from: 3, to: 3 });
   });
 
   it('refuses a database from a newer app', async () => {

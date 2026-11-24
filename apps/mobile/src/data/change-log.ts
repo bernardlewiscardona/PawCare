@@ -3,7 +3,7 @@ import type { DataDeps } from './deps';
 
 export interface ChangeEntry {
   ownerId: string;
-  entityType: 'owner' | 'pet';
+  entityType: 'owner' | 'pet' | 'care_record';
   entityId: string;
   entityVersion: number;
   action: string;
