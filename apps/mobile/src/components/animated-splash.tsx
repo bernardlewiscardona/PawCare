@@ -27,19 +27,22 @@ SplashScreen.setOptions({ duration: NATIVE_FADE_MS, fade: true });
  *
  * Reduced motion: no heartbeat or zoom, just a short fade. Native driver only (transform and
  * opacity). Touches are blocked until the reveal starts.
+ * `hold`: keeps the takeover waiting (native splash stays up) until it turns false.
  */
-export function AnimatedSplash() {
+export function AnimatedSplash({ hold = false }: { hold?: boolean }) {
   const [beat] = useState(() => new Animated.Value(1));
   const [reveal] = useState(() => new Animated.Value(0));
   const [zoom, setZoom] = useState(true);
   const [revealing, setRevealing] = useState(false);
   const [done, setDone] = useState(false);
   const started = useRef(false);
+  const holdRef = useRef(hold);
+  const logoLoaded = useRef(false);
 
   // Takes over once the logo has been drawn (so the native splash never uncovers a blank
   // canvas), or after a safety timeout so the splash can never stay up.
   const start = useCallback(async () => {
-    if (started.current) return;
+    if (started.current || holdRef.current) return;
     started.current = true;
     // Read once before the first frame; the motion hook's first value is only a guess.
     const reduced = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
@@ -65,10 +68,16 @@ export function AnimatedSplash() {
     });
   }, [beat, reveal]);
 
+  // While `hold` is set (the database is opening) the takeover waits; the safety timeout only
+  // starts once the hold is released. Without a hold this is the original behaviour.
   useEffect(() => {
+    holdRef.current = hold;
+    if (hold) return;
+    // The logo may have loaded while held; its one-shot load event won't repeat.
+    if (logoLoaded.current) void start();
     const fallback = setTimeout(() => void start(), SAFETY_MS);
     return () => clearTimeout(fallback);
-  }, [start]);
+  }, [hold, start]);
 
   if (done) return null;
 
@@ -92,7 +101,10 @@ export function AnimatedSplash() {
     >
       <Animated.Image
         source={splashLogo}
-        onLoadEnd={() => void start()}
+        onLoadEnd={() => {
+          logoLoaded.current = true;
+          void start();
+        }}
         style={[styles.logo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
       />
     </Animated.View>
