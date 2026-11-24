@@ -11,6 +11,7 @@ import {
 } from '@pawcare/core';
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
+import type { SqlConnection } from '../sql';
 import type { DataDeps } from '../deps';
 import { notFound, profileSetupRequired, validationFailed } from '../errors';
 import type { CreatePetInput, Pet, PetPage } from '../types';
@@ -25,6 +26,10 @@ export interface PetRepository {
   create(input: CreatePetInput): Promise<Pet>;
   list(query?: { limit?: number; cursor?: string }): Promise<PetPage>;
   get(id: string): Promise<Pet>;
+  /** The selected pet if active; else the oldest active pet; `null` with none. Never writes. */
+  selected(): Promise<Pet | null>;
+  /** Stores the selection. Unknown, malformed or archived pets are `NOT_FOUND`. */
+  select(id: string): Promise<Pet>;
 }
 
 interface PetRow {
@@ -140,6 +145,26 @@ function normalizePet(dto: CreatePetInput, today: string): PetFields {
   return input;
 }
 
+async function readActivePet(
+  c: SqlConnection,
+  ownerId: string,
+  id: string,
+): Promise<PetRow | undefined> {
+  if (!UUID.test(id)) return undefined;
+  return c.get<PetRow>('SELECT * FROM pets WHERE owner_id = ? AND id = ? AND archived_at IS NULL', [
+    ownerId,
+    id,
+  ]);
+}
+
+async function storeSelection(c: SqlConnection, ownerId: string, petId: string, at: string) {
+  await c.run(
+    `INSERT INTO pet_selection (owner_id, pet_id, selected_at) VALUES (?, ?, ?)
+     ON CONFLICT (owner_id) DO UPDATE SET pet_id = excluded.pet_id, selected_at = excluded.selected_at`,
+    [ownerId, petId, at],
+  );
+}
+
 function parsePageQuery(query: { limit?: number; cursor?: string }) {
   const errors: FieldErrors = {};
   const { limit = PAGE_LIMIT.default, cursor } = query;
@@ -157,7 +182,7 @@ function parsePageQuery(query: { limit?: number; cursor?: string }) {
 export function createPetRepository(db: Database, deps: DataDeps, ownerId: string): PetRepository {
   return {
     async create(rawInput) {
-      return db.write(['pets', 'change_log'], async (c) => {
+      return db.write(['pets', 'pet_selection', 'change_log'], async (c) => {
         const owner = await c.get<{
           id: string;
           time_zone: string;
@@ -203,6 +228,7 @@ export function createPetRepository(db: Database, deps: DataDeps, ownerId: strin
           action: 'pet.created',
           fields: Object.keys(input),
         });
+        await storeSelection(c, ownerId, id, at);
         const row = await c.get<PetRow>('SELECT * FROM pets WHERE owner_id = ? AND id = ?', [
           ownerId,
           id,
@@ -225,6 +251,32 @@ export function createPetRepository(db: Database, deps: DataDeps, ownerId: strin
         data: page.map(toPet),
         nextCursor: rows.length > limit ? page[page.length - 1].id : null,
       };
+    },
+
+    async selected() {
+      const row = await db.read(
+        async (c) =>
+          (await c.get<PetRow>(
+            `SELECT p.* FROM pet_selection s
+             JOIN pets p ON p.owner_id = s.owner_id AND p.id = s.pet_id
+             WHERE s.owner_id = ? AND p.archived_at IS NULL`,
+            [ownerId],
+          )) ??
+          (await c.get<PetRow>(
+            'SELECT * FROM pets WHERE owner_id = ? AND archived_at IS NULL ORDER BY id LIMIT 1',
+            [ownerId],
+          )),
+      );
+      return row ? toPet(row) : null;
+    },
+
+    async select(id) {
+      return db.write(['pet_selection'], async (c) => {
+        const row = await readActivePet(c, ownerId, id);
+        if (!row) throw notFound();
+        await storeSelection(c, ownerId, id, deps.now().toISOString());
+        return toPet(row);
+      });
     },
 
     async get(id) {

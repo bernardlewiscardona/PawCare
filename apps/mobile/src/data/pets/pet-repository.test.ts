@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { DataError } from '../errors';
 import { CHOOSE_SEX, CHOOSE_SPECIES, NOT_ALLOWED, WEIGHT_NUMBER } from '../shape';
-import { addOtherOwnerPet, openTestData } from '../testing/test-data';
+import { addOtherOwnerPet, openReadyTestData, openTestData } from '../testing/test-data';
 
 async function rejection(p: Promise<unknown>): Promise<DataError> {
   try {
@@ -16,11 +16,7 @@ async function rejection(p: Promise<unknown>): Promise<DataError> {
 
 const fieldsOf = (e: DataError) => (e.details as { fields: Record<string, string[]> }).fields;
 
-async function ready() {
-  const data = await openTestData();
-  await data.owner.update({ version: 1, displayName: 'Bea', timeZone: 'Asia/Manila' });
-  return data;
-}
+const ready = openReadyTestData;
 
 describe('pet repository: create', () => {
   it('creates a minimal pet with defaults', async () => {
