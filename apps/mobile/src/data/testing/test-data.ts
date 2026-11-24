@@ -35,6 +35,13 @@ export async function openTestData(options: { now?: Date } = {}): Promise<{
   };
 }
 
+/** Like `openTestData`, with the owner's profile set up (Bea, Asia/Manila) so pets can be added. */
+export async function openReadyTestData(options: { now?: Date } = {}) {
+  const data = await openTestData(options);
+  await data.owner.update({ version: 1, displayName: 'Bea', timeZone: 'Asia/Manila' });
+  return data;
+}
+
 /**
  * Tests only: adds a second owner and one active pet for them. Drops the single-owner index, so
  * call it only on a throwaway test database.
