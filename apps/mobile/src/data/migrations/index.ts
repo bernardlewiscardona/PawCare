@@ -2,6 +2,7 @@ import type { Database } from '../database';
 import { migration0001 } from './0001-owner-and-pets';
 import { migration0002 } from './0002-pet-selection';
 import { migration0003 } from './0003-care-records';
+import { migration0004 } from './0004-vaccinations';
 
 export interface Migration {
   version: number;
@@ -9,7 +10,12 @@ export interface Migration {
   sql: string;
 }
 
-export const MIGRATIONS: readonly Migration[] = [migration0001, migration0002, migration0003];
+export const MIGRATIONS: readonly Migration[] = [
+  migration0001,
+  migration0002,
+  migration0003,
+  migration0004,
+];
 export const LATEST_VERSION: number = MIGRATIONS[MIGRATIONS.length - 1]!.version;
 
 export class MigrationTooNewError extends Error {
