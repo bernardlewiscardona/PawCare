@@ -18,13 +18,14 @@ PF-02-APP,Pet registration screens on the phone data layer,Task,PF,High,Proposed
 PF-03,Select and edit pet profiles,User Story,PF,High,Done,PF-02,docs/spec/epics/PF.md
 PF-03-APP,Pet switcher and edit screens on the phone data layer,Task,PF,High,Proposed,PF-03 LOCAL-01,docs/spec/epics/PF.md
 PF-04,Archive and restore a pet,User Story,PF,Medium,Proposed,PF-02 AP-03 RM-02,docs/spec/epics/PF.md
-MR-01,Record a medical event,User Story,MR,High,In Progress,PF-02,docs/spec/epics/MR.md
+MR-01,Record a medical event,User Story,MR,High,Done,PF-02,docs/spec/epics/MR.md
 MR-01-APP,Medical event screens on the phone data layer,Task,MR,High,Proposed,MR-01 LOCAL-01,docs/spec/epics/MR.md
 MR-02,Attach medical documents,User Story,MR,High,Proposed,FN-01 MR-01,docs/spec/epics/MR.md
 MR-03,Browse the unified pet health timeline,User Story,MR,High,Proposed,MR-01 VC-01 VC-02,docs/spec/epics/MR.md
 MR-03-AP,Appointment entries in the health timeline,Task,MR,High,Proposed,MR-03 AP-05,docs/spec/epics/MR.md
 MR-04,Correct or void a medical event,User Story,MR,High,Proposed,MR-01 MR-03,docs/spec/epics/MR.md
-VC-01,Record an administered vaccine,User Story,VC,High,Proposed,PF-02,docs/spec/epics/VC.md
+VC-01,Record an administered vaccine,User Story,VC,High,In Progress,PF-02,docs/spec/epics/VC.md
+VC-01-APP,Vaccine screens on the phone data layer,Task,VC,High,Proposed,VC-01 LOCAL-01,docs/spec/epics/VC.md
 VC-02,Record a prescription and owner-entered schedule,User Story,VC,High,Proposed,PF-02 RM-01 RM-02,docs/spec/epics/VC.md
 VC-03,Log a medication dose and stop a prescription,User Story,VC,High,Proposed,VC-02 RM-02,docs/spec/epics/VC.md
 VC-04,Review upcoming and overdue care,User Story,VC,High,Proposed,VC-01 VC-02 VC-03 RM-02,docs/spec/epics/VC.md
