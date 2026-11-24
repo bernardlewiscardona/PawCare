@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { DevDataStatus } from '@/components/dev-data-status';
 import { DevConnectivityCheck } from '@/components/dev-connectivity-check';
 import { AppText } from '@/components/ui/app-text';
 import { color as palette, space } from '@/theme/tokens';
@@ -15,6 +16,7 @@ export default function DevScreen() {
           Developer tools
         </AppText>
         <DevConnectivityCheck />
+        <DevDataStatus />
       </View>
     </SafeAreaView>
   );
