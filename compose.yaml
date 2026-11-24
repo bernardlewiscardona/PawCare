@@ -51,14 +51,16 @@ services:
       - /workspace/node_modules
       - /workspace/apps/api/node_modules
       - /workspace/apps/mobile/node_modules
+      - /workspace/packages/core/node_modules
     # Re-syncs dependencies (a no-op unless pnpm-lock.yaml changed), regenerates the Prisma client
-    # into the bind-mounted src/generated, applies committed migrations, then starts in watch mode.
+    # into the bind-mounted src/generated, builds @pawcare/core's dist (the API imports the compiled package), applies committed migrations, then starts in watch mode.
     command:
       - sh
       - -c
       - |
         set -e
         pnpm install --frozen-lockfile --filter pawcare --filter "api..." --config.confirm-modules-purge=false
+        pnpm --filter @pawcare/core build
         pnpm prisma:generate
         if [ -d prisma/migrations ]; then pnpm db:migrate:deploy; fi
         exec pnpm start:dev

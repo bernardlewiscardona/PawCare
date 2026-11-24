@@ -32,8 +32,12 @@ USER node
 # Copy only manifests, the lockfile and the Prisma schema (the API's postinstall runs
 # `prisma generate`), so this layer is rebuilt only when dependencies change.
 # apps/mobile/package.json is needed to match the workspace lockfile; its packages are not installed.
+# packages/core is an API dependency; its `prepare` script compiles it during install, so its source is copied too.
+# compose.yaml rebuilds it at start, because the bind mount hides this copy.
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY --chown=node:node apps/mobile/package.json apps/mobile/
+COPY --chown=node:node packages/core/package.json packages/core/tsconfig.json packages/core/tsconfig.build.json packages/core/
+COPY --chown=node:node packages/core/src packages/core/src/
 COPY --chown=node:node apps/api/package.json apps/api/prisma.config.ts apps/api/
 COPY --chown=node:node apps/api/prisma apps/api/prisma/
 RUN pnpm install --frozen-lockfile --filter pawcare --filter "api..."
