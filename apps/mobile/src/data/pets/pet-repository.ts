@@ -41,6 +41,7 @@ interface PetRow {
   microchip: string | null;
   version: number;
   created_at: string;
+  archived_at: string | null;
 }
 
 /** Validated pet fields, before defaults. The weight is kilograms, as in the API. */
@@ -72,6 +73,7 @@ function toPet(row: PetRow): Pet {
     microchip: row.microchip,
     version: row.version,
     createdAt: row.created_at,
+    archivedAt: row.archived_at,
   };
 }
 
@@ -151,7 +153,8 @@ function parsePageQuery(query: { limit?: number; cursor?: string }) {
   return { limit, cursor };
 }
 
-export function createPetRepository(db: Database, deps: DataDeps): PetRepository {
+/** Every query is scoped to `ownerId`, the phone's owner from `ensureOwner`. */
+export function createPetRepository(db: Database, deps: DataDeps, ownerId: string): PetRepository {
   return {
     async create(rawInput) {
       return db.write(['pets', 'change_log'], async (c) => {
@@ -159,7 +162,7 @@ export function createPetRepository(db: Database, deps: DataDeps): PetRepository
           id: string;
           time_zone: string;
           profile_completed_at: string | null;
-        }>('SELECT id, time_zone, profile_completed_at FROM owners LIMIT 1');
+        }>('SELECT id, time_zone, profile_completed_at FROM owners WHERE id = ?', [ownerId]);
         if (!owner || owner.profile_completed_at === null) {
           throw profileSetupRequired(SETUP_MESSAGE);
         }
@@ -200,7 +203,10 @@ export function createPetRepository(db: Database, deps: DataDeps): PetRepository
           action: 'pet.created',
           fields: Object.keys(input),
         });
-        const row = await c.get<PetRow>('SELECT * FROM pets WHERE id = ?', [id]);
+        const row = await c.get<PetRow>('SELECT * FROM pets WHERE owner_id = ? AND id = ?', [
+          ownerId,
+          id,
+        ]);
         return toPet(row!);
       });
     },
@@ -209,9 +215,9 @@ export function createPetRepository(db: Database, deps: DataDeps): PetRepository
       const { limit, cursor } = parsePageQuery(query);
       const rows = await db.read((c) =>
         c.all<PetRow>(
-          `SELECT * FROM pets WHERE archived_at IS NULL AND (? IS NULL OR id > ?)
+          `SELECT * FROM pets WHERE owner_id = ? AND archived_at IS NULL AND (? IS NULL OR id > ?)
            ORDER BY id LIMIT ?`,
-          [cursor ?? null, cursor ?? null, limit + 1],
+          [ownerId, cursor ?? null, cursor ?? null, limit + 1],
         ),
       );
       const page = rows.slice(0, limit);
@@ -223,7 +229,9 @@ export function createPetRepository(db: Database, deps: DataDeps): PetRepository
 
     async get(id) {
       const row = UUID.test(id)
-        ? await db.read((c) => c.get<PetRow>('SELECT * FROM pets WHERE id = ?', [id]))
+        ? await db.read((c) =>
+            c.get<PetRow>('SELECT * FROM pets WHERE owner_id = ? AND id = ?', [ownerId, id]),
+          )
         : undefined;
       if (!row) throw notFound();
       return toPet(row);
