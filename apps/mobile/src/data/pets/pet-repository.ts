@@ -1,8 +1,9 @@
-import { PAGE_LIMIT, isRuleError, localDate, type FieldErrors } from '@pawcare/core';
+import { isRuleError, localDate, type FieldErrors } from '@pawcare/core';
 import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { SqlConnection } from '../sql';
 import type { DataDeps } from '../deps';
+import { UUID, parsePageQuery } from '../paging';
 import { conflict, notFound, profileSetupRequired, validationFailed } from '../errors';
 import type { CreatePetInput, Pet, PetPage, UpdatePetInput } from '../types';
 import {
@@ -16,10 +17,7 @@ import {
 import { parseCreatePetInput, parseUpdatePetInput } from './pet-input';
 import { mergePetUpdate } from './pet-update';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SETUP_MESSAGE = 'Finish setting up your profile before adding a pet.';
-const PAGE_SIZE_MESSAGE = 'Choose a page size of 1–100.';
-const CURSOR_MESSAGE = 'Use the nextCursor from the previous page.';
 const CONFLICT_MESSAGE = 'This pet was changed elsewhere. Review the latest version and try again.';
 
 export interface PetRepository {
@@ -108,19 +106,6 @@ async function storeSelection(c: SqlConnection, ownerId: string, petId: string, 
      ON CONFLICT (owner_id) DO UPDATE SET pet_id = excluded.pet_id, selected_at = excluded.selected_at`,
     [ownerId, petId, at],
   );
-}
-
-function parsePageQuery(query: { limit?: number; cursor?: string }) {
-  const errors: FieldErrors = {};
-  const { limit = PAGE_LIMIT.default, cursor } = query;
-  if (!Number.isInteger(limit) || limit < PAGE_LIMIT.min || limit > PAGE_LIMIT.max) {
-    errors.limit = [PAGE_SIZE_MESSAGE];
-  }
-  if (cursor !== undefined && !(typeof cursor === 'string' && UUID.test(cursor))) {
-    errors.cursor = [CURSOR_MESSAGE];
-  }
-  if (Object.keys(errors).length > 0) throw validationFailed(errors);
-  return { limit, cursor };
 }
 
 /** Every query is scoped to `ownerId`, the phone's owner from `ensureOwner`. */

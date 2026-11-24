@@ -11,17 +11,21 @@ import { recordChange } from '../change-log';
 import type { Database } from '../database';
 import type { DataDeps } from '../deps';
 import { confirmationRequired, notFound, validationFailed } from '../errors';
+import { UUID, badCursor, parsePageQuery } from '../paging';
 import type { SqlConnection } from '../sql';
-import type { CreateMedicalEventInput, MedicalEvent } from '../types';
+import type { CreateMedicalEventInput, MedicalEvent, MedicalEventPage } from '../types';
 import { parseCreateMedicalEventInput } from './medical-input';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface MedicalRepository {
   /** Records an owner-entered medical event: parent, subtype and change log in one write. */
   create(input: CreateMedicalEventInput): Promise<MedicalEvent>;
   /** Any status, archived pets included. Unknown or another owner's → `NOT_FOUND`. */
   get(id: string): Promise<MedicalEvent>;
+  /**
+   * A pet's ACTIVE medical events, newest date first, ID as tiebreak; archived pets included.
+   * MR-03 may replace this with the timeline; MR-04 adds voided records.
+   */
+  listForPet(petId: string, query?: { limit?: number; cursor?: string }): Promise<MedicalEventPage>;
 }
 
 interface MedicalRow {
@@ -163,6 +167,49 @@ export function createMedicalRepository(
           id,
         ]);
         return toMedicalEvent(row!);
+      });
+    },
+
+    async listForPet(petId, query = {}) {
+      const { limit, cursor } = parsePageQuery(query);
+      return db.read(async (c) => {
+        const pet = UUID.test(petId)
+          ? await c.get<{ id: string }>('SELECT id FROM pets WHERE owner_id = ? AND id = ?', [
+              ownerId,
+              petId,
+            ])
+          : undefined;
+        if (!pet) throw notFound();
+
+        let after: { occurrence_date: string; id: string } | undefined;
+        if (cursor !== undefined) {
+          after = await c.get<{ occurrence_date: string; id: string }>(
+            `SELECT occurrence_date, id FROM care_records
+             WHERE owner_id = ? AND pet_id = ? AND id = ? AND kind = 'MEDICAL'`,
+            [ownerId, pet.id, cursor],
+          );
+          if (!after) throw badCursor();
+        }
+        const rows = await c.all<MedicalRow>(
+          `${SELECT_MEDICAL}
+           WHERE r.owner_id = ? AND r.pet_id = ? AND r.status = 'ACTIVE'
+             AND (? IS NULL OR (r.occurrence_date, r.id) < (?, ?))
+           ORDER BY r.occurrence_date DESC, r.id DESC
+           LIMIT ?`,
+          [
+            ownerId,
+            pet.id,
+            after?.id ?? null,
+            after?.occurrence_date ?? null,
+            after?.id ?? null,
+            limit + 1,
+          ],
+        );
+        const page = rows.slice(0, limit);
+        return {
+          data: page.map(toMedicalEvent),
+          nextCursor: rows.length > limit ? page[page.length - 1].id : null,
+        };
       });
     },
 
