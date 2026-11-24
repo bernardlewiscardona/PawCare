@@ -100,3 +100,8 @@ export interface CreateMedicalEventInput {
   /** Set after the owner confirms a date before the pet's birth date. */
   confirmBeforeBirth?: boolean;
 }
+
+export interface MedicalEventPage {
+  data: MedicalEvent[];
+  nextCursor: string | null;
+}
