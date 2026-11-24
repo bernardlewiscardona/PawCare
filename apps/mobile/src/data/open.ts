@@ -11,7 +11,8 @@ export const KEY_NAME = 'pawcare-db-key';
 
 const KEY_BYTES = 32;
 const KEY_PATTERN = /^[0-9a-f]{64}$/;
-const DB_SUFFIXES = ['', '-wal', '-shm'] as const;
+// Every SQLite sidecar: the default rollback journal, and WAL's two files.
+const DB_SUFFIXES = ['', '-journal', '-wal', '-shm'] as const;
 
 /** Everything opening needs from the platform. `expo-env.ts` wires the real one; tests fake it. */
 export interface OpenEnv {
